@@ -63,9 +63,13 @@ vista del browser.
   repo sono duplicate da `onepiece-infrastructure/.github/workflows/test-infrastructure.yml`
   e vanno aggiornate insieme, manualmente, finché non si introduce
   l'alternativa "reusable workflow".
-- I secret `GHCR_PULL_USERNAME`/`GHCR_PULL_TOKEN` (già presenti nel repo
-  infra) vanno replicati anche nei secret di questo repo: sono ambiti per
-  repository, non condivisi automaticamente nell'organizzazione.
+- I secret `GHCR_PULL_USERNAME`/`GHCR_PULL_TOKEN` sono definiti a livello
+  organizzazione (`one-piece-api`), non duplicati per repository: la loro
+  policy di "repository access" deve includere questo repo perché
+  `${{ secrets.* }}` li risolva nel workflow. Essendo `one-piece-e2e`
+  pubblico, la policy va impostata esplicitamente su *All repositories* o su
+  *Selected repositories* con questo repo incluso — *Private repositories*
+  lo escluderebbe.
 - "Ambiente pulito" è garantito strutturalmente (cluster ricreato da zero a
   ogni run), non da logica di reset nei test: i singoli test devono comunque
   restare isolati tra loro tramite dati univoci, non assumere un cluster

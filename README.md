@@ -34,5 +34,6 @@ Punta a un ambiente diverso da `http://localhost:4180` con `E2E_BASE_URL`.
 esegue `scripts/setup.sh` (ambiente Helmfile `ci`, immagini da GHCR), lancia
 la suite, poi distrugge sempre il cluster (`scripts/teardown.sh`) — anche in
 caso di fallimento. Richiede i secret `GHCR_PULL_USERNAME` e
-`GHCR_PULL_TOKEN` (stessi valori già configurati in
-`onepiece-infrastructure`) impostati su **questo** repo.
+`GHCR_PULL_TOKEN`, definiti a livello organizzazione (`one-piece-api`): la
+loro "repository access" deve includere questo repo, che è pubblico (quindi
+non basta *Private repositories*).
