@@ -107,6 +107,15 @@ jobs:
           echo "oauth2-proxy non raggiungibile su localhost:4180 dopo 60s" >&2
           exit 1
 
+      - name: Diagnostica temporanea pre-test
+        run: |
+          echo "::group::processo port-forward"
+          ps -ef | grep "[p]ort-forward" || echo "NESSUN processo port-forward vivo"
+          echo "::endgroup::"
+          echo "::group::curl -v su localhost:4180"
+          curl -v -o /dev/null "http://localhost:4180/" || true
+          echo "::endgroup::"
+
       - name: Esegui la suite e2e
         run: npm test
 
