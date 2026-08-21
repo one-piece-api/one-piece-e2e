@@ -21,6 +21,13 @@ test('an authenticated pirate sees their identity and can abandon ship', async (
 
   await page.getByRole('link', { name: /Abandon Ship/ }).click();
 
+  // Keycloak inserts a confirmation step here: the logout request carries
+  // no id_token_hint (the SPA never holds the token — oauth2-proxy keeps it
+  // server-side), and without that hint RP-initiated logout requires
+  // explicit confirmation per the OIDC spec, rather than logging out on a
+  // bare redirect.
+  await page.getByRole('button', { name: 'Logout' }).click();
+
   // Full logout (UF-IDU-08) ends both the proxy and the Keycloak SSO
   // session, so a fresh visit lands back on the login form rather than
   // silently re-authenticating.
