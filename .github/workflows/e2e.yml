@@ -1,0 +1,133 @@
+name: E2E
+
+# Non reimplementa l'ambiente in YAML: fa checkout di onepiece-infrastructure
+# e invoca esattamente ./scripts/setup.sh, lo stesso comando usato in locale
+# e dalla CI di quel repo (vedi test-infrastructure.yml). Un cluster kind
+# nuovo per ogni run, distrutto alla fine: "ambiente pulito" è strutturale,
+# non delegato a un reset applicativo tra i test. Vedi
+# docs/adr/0001-e2e-environment-strategy.md.
+#
+# Versioni di kind/kubectl/helm/helmfile allineate manualmente a quelle di
+# onepiece-infrastructure/.github/workflows/test-infrastructure.yml: se
+# quelle vengono aggiornate, aggiornare anche queste (vedi ADR-0001,
+# "Conseguenze").
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  KIND_VERSION: v0.32.0
+  KUBECTL_VERSION: v1.36.3
+  HELM_VERSION: v4.2.4
+  HELMFILE_VERSION: v1.7.4
+  HELMFILE_ENVIRONMENT: ci
+  GHCR_PULL_USERNAME: ${{ secrets.GHCR_PULL_USERNAME }}
+  GHCR_PULL_TOKEN: ${{ secrets.GHCR_PULL_TOKEN }}
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout one-piece-e2e
+        uses: actions/checkout@v7
+
+      - name: Checkout onepiece-infrastructure
+        uses: actions/checkout@v7
+        with:
+          repository: one-piece-api/one-piece-infrastructure
+          path: infrastructure
+
+      - name: Installa kind/kubectl/helm/helmfile (versioni pinnate)
+        run: |
+          mkdir -p "$HOME/.local/bin"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+          curl -sL -o "$HOME/.local/bin/kind" \
+            "https://kind.sigs.k8s.io/dl/${KIND_VERSION}/kind-linux-amd64"
+          chmod +x "$HOME/.local/bin/kind"
+
+          curl -sL -o "$HOME/.local/bin/kubectl" \
+            "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl"
+          chmod +x "$HOME/.local/bin/kubectl"
+
+          curl -sL "https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz" \
+            | tar -xz -C /tmp
+          mv /tmp/linux-amd64/helm "$HOME/.local/bin/helm"
+
+          curl -sL "https://github.com/helmfile/helmfile/releases/download/${HELMFILE_VERSION}/helmfile_${HELMFILE_VERSION#v}_linux_amd64.tar.gz" \
+            | tar -xz -C "$HOME/.local/bin" helmfile
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Installa dipendenze e browser Playwright
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: Ambiente completo da zero (cluster + stack via Helmfile, immagini GHCR)
+        run: ./scripts/setup.sh
+        working-directory: infrastructure
+
+      - name: Port-forward su oauth2-proxy (unico entry point dello stack)
+        run: |
+          kubectl port-forward svc/oauth2-proxy -n auth 4180:4180 &
+          echo "PORT_FORWARD_PID=$!" >> "$GITHUB_ENV"
+
+          for _ in $(seq 1 30); do
+            if curl -sf -o /dev/null "http://localhost:4180/"; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "oauth2-proxy non raggiungibile su localhost:4180 dopo 60s" >&2
+          exit 1
+
+      - name: Esegui la suite e2e
+        run: npm test
+
+      - name: Report Playwright (solo se un passo precedente è fallito)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
+
+      - name: Diagnostica cluster (solo se un passo precedente è fallito)
+        if: failure()
+        run: |
+          echo "::group::kubectl get pods -A"
+          kubectl get pods -A -o wide || true
+          echo "::endgroup::"
+
+          echo "::group::kubectl get events -n auth"
+          kubectl get events -n auth --sort-by=.lastTimestamp || true
+          echo "::endgroup::"
+
+          echo "::group::kubectl get events -n app"
+          kubectl get events -n app --sort-by=.lastTimestamp || true
+          echo "::endgroup::"
+
+      - name: Ferma il port-forward
+        if: always()
+        run: kill "$PORT_FORWARD_PID" 2>/dev/null || true
+
+      - name: Distruggi l'ambiente
+        if: always()
+        run: ./scripts/teardown.sh -y
+        working-directory: infrastructure
