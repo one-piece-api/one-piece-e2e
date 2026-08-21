@@ -84,37 +84,39 @@ jobs:
         run: ./scripts/setup.sh
         working-directory: infrastructure
 
-      - name: Port-forward su oauth2-proxy (unico entry point dello stack)
+      - name: Port-forward su oauth2-proxy e Keycloak
         run: |
-          # Deve sopravvivere oltre la fine di questo step (lo step
-          # "Esegui la suite e2e" lo usa dopo). Due cose ce lo impediscono
-          # se non gestite: (1) ereditare lo stdout/stderr di questo step lo
+          # Entrambi, non solo oauth2-proxy: il browser segue il redirect
+          # OAuth2 fino a Keycloak sul suo hostname "browser-facing"
+          # (localhost:8080, vedi onepiece-infrastructure/docs/adr/0001) per
+          # mostrare la pagina di login, non solo la chiamata iniziale a
+          # oauth2-proxy — stesse due porte del README dell'infra.
+          #
+          # Devono sopravvivere oltre la fine di questo step (lo step
+          # "Esegui la suite e2e" li usa dopo). Due cose ce lo impediscono se
+          # non gestite: (1) ereditare lo stdout/stderr di questo step li
           # farebbe morire di SIGPIPE alla prima riga scritta dopo che la
           # pipe di log si chiude; risolto rediretto su file; (2) il runner
           # GitHub uccide l'intero process group dello step alla sua fine,
-          # background job compreso — "&" da solo non basta, va anche
-          # staccato con setsid in una sessione propria.
+          # background job compreso — "&" da solo non basta, vanno anche
+          # staccati con setsid in una sessione propria.
+          setsid kubectl port-forward svc/keycloak-http -n auth 8080:8080 \
+            > /tmp/port-forward-keycloak.log 2>&1 < /dev/null &
+          echo "PORT_FORWARD_KEYCLOAK_PID=$!" >> "$GITHUB_ENV"
+
           setsid kubectl port-forward svc/oauth2-proxy -n auth 4180:4180 \
-            > /tmp/port-forward.log 2>&1 < /dev/null &
-          echo "PORT_FORWARD_PID=$!" >> "$GITHUB_ENV"
+            > /tmp/port-forward-oauth2-proxy.log 2>&1 < /dev/null &
+          echo "PORT_FORWARD_OAUTH2_PROXY_PID=$!" >> "$GITHUB_ENV"
 
           for _ in $(seq 1 30); do
-            if curl -sf -o /dev/null "http://localhost:4180/"; then
+            if curl -sf -o /dev/null "http://localhost:8080/realms/onepiece" \
+              && curl -sf -o /dev/null "http://localhost:4180/"; then
               exit 0
             fi
             sleep 2
           done
-          echo "oauth2-proxy non raggiungibile su localhost:4180 dopo 60s" >&2
+          echo "keycloak-http e/o oauth2-proxy non raggiungibili dopo 60s" >&2
           exit 1
-
-      - name: Diagnostica temporanea pre-test
-        run: |
-          echo "::group::processo port-forward"
-          ps -ef | grep "[p]ort-forward" || echo "NESSUN processo port-forward vivo"
-          echo "::endgroup::"
-          echo "::group::curl -v su localhost:4180"
-          curl -v -o /dev/null "http://localhost:4180/" || true
-          echo "::endgroup::"
 
       - name: Esegui la suite e2e
         run: npm test
@@ -130,8 +132,12 @@ jobs:
       - name: Diagnostica cluster (solo se un passo precedente è fallito)
         if: failure()
         run: |
-          echo "::group::log di kubectl port-forward"
-          cat /tmp/port-forward.log 2>/dev/null || echo "(nessun log: il processo non è mai partito)"
+          echo "::group::log di kubectl port-forward (keycloak-http)"
+          cat /tmp/port-forward-keycloak.log 2>/dev/null || echo "(nessun log: il processo non è mai partito)"
+          echo "::endgroup::"
+
+          echo "::group::log di kubectl port-forward (oauth2-proxy)"
+          cat /tmp/port-forward-oauth2-proxy.log 2>/dev/null || echo "(nessun log: il processo non è mai partito)"
           echo "::endgroup::"
 
           echo "::group::kubectl get pods -A"
@@ -146,9 +152,11 @@ jobs:
           kubectl get events -n app --sort-by=.lastTimestamp || true
           echo "::endgroup::"
 
-      - name: Ferma il port-forward
+      - name: Ferma i port-forward
         if: always()
-        run: kill "$PORT_FORWARD_PID" 2>/dev/null || true
+        run: |
+          kill "$PORT_FORWARD_KEYCLOAK_PID" 2>/dev/null || true
+          kill "$PORT_FORWARD_OAUTH2_PROXY_PID" 2>/dev/null || true
 
       - name: Distruggi l'ambiente
         if: always()
