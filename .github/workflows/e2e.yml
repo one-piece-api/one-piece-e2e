@@ -86,7 +86,13 @@ jobs:
 
       - name: Port-forward su oauth2-proxy (unico entry point dello stack)
         run: |
-          kubectl port-forward svc/oauth2-proxy -n auth 4180:4180 &
+          # Deve sopravvivere oltre la fine di questo step (lo step
+          # "Esegui la suite e2e" lo usa dopo): ereditare lo stdout/stderr di
+          # questo step lo farebbe morire di SIGPIPE non appena quella pipe
+          # di log si chiude, alla prima riga scritta dopo (kubectl stampa
+          # "Handling connection..." per ogni richiesta). Va rediretto su
+          # file.
+          kubectl port-forward svc/oauth2-proxy -n auth 4180:4180 > /tmp/port-forward.log 2>&1 &
           echo "PORT_FORWARD_PID=$!" >> "$GITHUB_ENV"
 
           for _ in $(seq 1 30); do
@@ -112,6 +118,10 @@ jobs:
       - name: Diagnostica cluster (solo se un passo precedente è fallito)
         if: failure()
         run: |
+          echo "::group::log di kubectl port-forward"
+          cat /tmp/port-forward.log 2>/dev/null || echo "(nessun log: il processo non è mai partito)"
+          echo "::endgroup::"
+
           echo "::group::kubectl get pods -A"
           kubectl get pods -A -o wide || true
           echo "::endgroup::"
