@@ -87,12 +87,15 @@ jobs:
       - name: Port-forward su oauth2-proxy (unico entry point dello stack)
         run: |
           # Deve sopravvivere oltre la fine di questo step (lo step
-          # "Esegui la suite e2e" lo usa dopo): ereditare lo stdout/stderr di
-          # questo step lo farebbe morire di SIGPIPE non appena quella pipe
-          # di log si chiude, alla prima riga scritta dopo (kubectl stampa
-          # "Handling connection..." per ogni richiesta). Va rediretto su
-          # file.
-          kubectl port-forward svc/oauth2-proxy -n auth 4180:4180 > /tmp/port-forward.log 2>&1 &
+          # "Esegui la suite e2e" lo usa dopo). Due cose ce lo impediscono
+          # se non gestite: (1) ereditare lo stdout/stderr di questo step lo
+          # farebbe morire di SIGPIPE alla prima riga scritta dopo che la
+          # pipe di log si chiude; risolto rediretto su file; (2) il runner
+          # GitHub uccide l'intero process group dello step alla sua fine,
+          # background job compreso — "&" da solo non basta, va anche
+          # staccato con setsid in una sessione propria.
+          setsid kubectl port-forward svc/oauth2-proxy -n auth 4180:4180 \
+            > /tmp/port-forward.log 2>&1 < /dev/null &
           echo "PORT_FORWARD_PID=$!" >> "$GITHUB_ENV"
 
           for _ in $(seq 1 30); do
