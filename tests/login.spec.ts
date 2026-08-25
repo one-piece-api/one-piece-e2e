@@ -16,7 +16,9 @@ test('an authenticated pirate sees their identity and can abandon ship', async (
   await page.locator('#password').fill(PASSWORD);
   await page.locator('#kc-login').click();
 
-  await expect(page.getByText('luffy@onepiece.local')).toBeVisible();
+  // The header also shows the signed-in email (persistent chrome), so scope
+  // to the main "Signed in as" card to keep this locator unambiguous.
+  await expect(page.getByRole('main').getByText('luffy@onepiece.local')).toBeVisible();
   await expect(page.getByText('ADMIN')).toBeVisible();
 
   await page.getByRole('link', { name: /Abandon Ship/ }).click();

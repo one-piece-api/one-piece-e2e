@@ -56,7 +56,9 @@ test('an admin sees the full crew manifest with every role and status represente
 test('a non-admin cannot reach the crew manifest', async ({ page }) => {
   await login(page, NON_ADMIN);
 
-  await expect(page.getByText('nami@onepiece.local')).toBeVisible();
+  // The header also shows the signed-in email (persistent chrome), so scope
+  // to the main "Signed in as" card to keep this locator unambiguous.
+  await expect(page.getByRole('main').getByText('nami@onepiece.local')).toBeVisible();
   await expect(page.getByRole('link', { name: /Crew Manifest/ })).toHaveCount(0);
 
   // The backend is the actual authority here (UF-IDU-16/SecurityConfig
