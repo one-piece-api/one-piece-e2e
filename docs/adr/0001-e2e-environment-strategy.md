@@ -69,7 +69,10 @@ vista del browser.
   `${{ secrets.* }}` li risolva nel workflow. Essendo `one-piece-e2e`
   pubblico, la policy va impostata esplicitamente su *All repositories* o su
   *Selected repositories* con questo repo incluso — *Private repositories*
-  lo escluderebbe.
+  lo escluderebbe. Stessa policy per `RESEND_API_KEY`, obbligatoria in ogni
+  ambiente da quando `onepiece-infrastructure` ha rimosso Mailpit (vedi la
+  sua `docs/adr/0007-resend-only-email-delivery.md`) - senza, l'hook
+  postsync della release "keycloak" fallisce e `setup.sh` non completa.
 - "Ambiente pulito" è garantito strutturalmente (cluster ricreato da zero a
   ogni run), non da logica di reset nei test: i singoli test devono comunque
   restare isolati tra loro tramite dati univoci, non assumere un cluster
