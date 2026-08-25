@@ -50,3 +50,63 @@ test('inviting an already-registered email is rejected', async ({ page }) => {
 
   await expect(page.getByText(/already registered/)).toBeVisible();
 });
+
+test('an admin invites a crewmate with more than one role', async ({ page }) => {
+  await login(page, ADMIN);
+  await page.getByRole('link', { name: /Crew Manifest/ }).click();
+  await page.getByRole('button', { name: 'New User' }).click();
+
+  const email = uniqueEmail('franky');
+  await page.getByLabel('Email').fill(email);
+  await page.getByRole('checkbox', { name: 'ADMIN' }).check();
+  await page.getByRole('checkbox', { name: 'REVIEWER' }).check();
+  await page.getByRole('button', { name: /Send Invitation/ }).click();
+
+  await expect(page.getByText(new RegExp(`Invitation sent to ${email}`))).toBeVisible();
+
+  const row = page.locator('table tbody tr').filter({ hasText: email });
+  await expect(row.getByText('Pending')).toBeVisible();
+  await expect(row.getByText('ADMIN', { exact: true })).toBeVisible();
+  await expect(row.getByText('REVIEWER', { exact: true })).toBeVisible();
+  // Only the two checked roles - not every role in the form.
+  await expect(row.getByText('EDITOR', { exact: true })).toHaveCount(0);
+});
+
+test('the invite form rejects an empty email and no role without calling the backend', async ({
+  page,
+}) => {
+  await login(page, ADMIN);
+  await page.getByRole('link', { name: /Crew Manifest/ }).click();
+  await page.getByRole('button', { name: 'New User' }).click();
+
+  await page.getByRole('button', { name: /Send Invitation/ }).click();
+
+  await expect(page.getByText(/email address be needed/)).toBeVisible();
+  await expect(page.getByText(/Pick at least one role/)).toBeVisible();
+  await expect(page.getByText(/Invitation sent/)).toHaveCount(0);
+});
+
+test('the invite form rejects a malformed email address', async ({ page }) => {
+  await login(page, ADMIN);
+  await page.getByRole('link', { name: /Crew Manifest/ }).click();
+  await page.getByRole('button', { name: 'New User' }).click();
+
+  await page.getByLabel('Email').fill('not-an-email');
+  await page.getByRole('checkbox', { name: 'EDITOR' }).check();
+  await page.getByRole('button', { name: /Send Invitation/ }).click();
+
+  await expect(page.getByText(/no proper email address/)).toBeVisible();
+  await expect(page.getByText(/Invitation sent/)).toHaveCount(0);
+});
+
+test('a non-admin cannot invite a new crewmate', async ({ page }) => {
+  await login(page, { username: 'nami', password: 'nami-change-me' });
+
+  // The UI never renders the entry point for a non-admin (admin-user-list.spec.ts),
+  // but the write endpoint itself is the real authority - a direct call must be
+  // denied too, exactly like the read endpoint (UF-IDU-16/SecurityConfig "/admin/**").
+  const response = await page.request.post('/api/admin/users', {
+    data: { email: uniqueEmail('carrot'), roles: ['EDITOR'] },
+  });
+  expect(response.status()).toBe(403);
+});
