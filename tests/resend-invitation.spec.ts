@@ -35,14 +35,14 @@ async function inviteUser(
   await page.getByRole('button', { name: 'New User' }).click();
   await page.getByLabel('Email').fill(email);
   await page.getByRole('checkbox', { name: role }).check();
+  await page.getByRole('button', { name: /Send Invitation/ }).click();
 
-  const [response] = await Promise.all([
-    page.waitForResponse(
-      (res) => res.url().endsWith('/api/admin/users') && res.request().method() === 'POST',
-    ),
-    page.getByRole('button', { name: /Send Invitation/ }).click(),
-  ]);
-  return response.json();
+  // Reading the POST response body directly (page.waitForResponse(...).json()) raced
+  // whatever the app does right after the click and intermittently hit Playwright's
+  // "Response body is not available for a response that was navigated away from" -
+  // findUserId's own separate, out-of-band request sidesteps that race entirely.
+  await expect(page.getByText(new RegExp(`Invitation sent to ${email}`))).toBeVisible();
+  return { userId: await findUserId(page, email), email };
 }
 
 async function findUserId(page: Page, email: string): Promise<string> {
