@@ -28,6 +28,13 @@ npm test
 
 Punta a un ambiente diverso da `http://localhost:4180` con `E2E_BASE_URL`.
 
+`resend-invitation.spec.ts` richiede l'ambiente Helmfile `ci`
+(`HELMFILE_ENVIRONMENT=ci ./scripts/setup.sh`), l'unico con un
+`keycloak.invitation.token-lifespan` breve (`PT5S` invece di `PT12H`) - vedi
+`onepiece-infrastructure/docs/adr/0006-short-invitation-lifespan-in-ci.md`.
+Contro un cluster sincronizzato con l'ambiente `default` quel test non vedrà
+mai l'invito scadere entro il proprio timeout.
+
 ## CI
 
 `.github/workflows/e2e.yml` fa checkout di `onepiece-infrastructure`,
