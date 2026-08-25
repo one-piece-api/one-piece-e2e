@@ -9,8 +9,13 @@ export default defineConfig({
   testDir: './tests',
   // Tests share one cluster for the whole run (recreating it per test would
   // cost minutes each time), so they must not race each other over shared
-  // state (e.g. the same Keycloak session).
+  // state (e.g. the same Keycloak session). fullyParallel:false alone only
+  // serializes tests *within* a file - Playwright still runs separate files
+  // concurrently across its default worker count unless workers is pinned
+  // too, which let e.g. admin-user-list.spec.ts's exact-row-count(5)
+  // assertion race invite-user.spec.ts adding a 6th user mid-run.
   fullyParallel: false,
+  workers: 1,
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? [['html', { open: 'never' }]] : 'list',
   use: {
