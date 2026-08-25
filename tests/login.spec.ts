@@ -21,7 +21,9 @@ test('an authenticated pirate sees their identity and can abandon ship', async (
   await expect(page.getByRole('main').getByText('luffy@onepiece.local')).toBeVisible();
   await expect(page.getByText('ADMIN')).toBeVisible();
 
-  await page.getByRole('link', { name: /Abandon Ship/ }).click();
+  // "Log Out" per the navbar's plain, professional copy (system chrome
+  // drops the pirate tone by design - see root CLAUDE.md UI/UX guidelines).
+  await page.getByRole('link', { name: 'Log Out' }).click();
 
   // Keycloak inserts a confirmation step here: the logout request carries
   // no id_token_hint (the SPA never holds the token — oauth2-proxy keeps it
