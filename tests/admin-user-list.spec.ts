@@ -29,22 +29,27 @@ test('an admin sees the full crew manifest with every role and status represente
   const rows = page.locator('table tbody tr');
   await expect(rows).toHaveCount(5);
 
-  const luffyRow = rows.filter({ hasText: 'luffy@onepiece.local' });
+  // Rows are identified by username now (UF-IDU-02/§2 of
+  // application-user-identity-management.md) - all five seeded users have a
+  // real, distinct-from-email username since they're seeded directly rather
+  // than provisioned through the invite flow (where username defaults to the
+  // email placeholder until activation).
+  const luffyRow = rows.filter({ hasText: 'luffy' });
   await expect(luffyRow.getByText('Active')).toBeVisible();
   await expect(luffyRow.getByText('ADMIN', { exact: true })).toBeVisible();
 
-  const namiRow = rows.filter({ hasText: 'nami@onepiece.local' });
+  const namiRow = rows.filter({ hasText: 'nami' });
   await expect(namiRow.getByText('Active')).toBeVisible();
   await expect(namiRow.getByText('EDITOR', { exact: true })).toBeVisible();
 
-  const zoroRow = rows.filter({ hasText: 'zoro@onepiece.local' });
+  const zoroRow = rows.filter({ hasText: 'zoro' });
   await expect(zoroRow.getByText('Active')).toBeVisible();
   await expect(zoroRow.getByText('REVIEWER', { exact: true })).toBeVisible();
 
-  const sanjiRow = rows.filter({ hasText: 'sanji@onepiece.local' });
+  const sanjiRow = rows.filter({ hasText: 'sanji' });
   await expect(sanjiRow.getByText('Disabled')).toBeVisible();
 
-  const usoppRow = rows.filter({ hasText: 'usopp@onepiece.local' });
+  const usoppRow = rows.filter({ hasText: 'usopp' });
   await expect(usoppRow.getByText('Pending')).toBeVisible();
 
   // Keycloak assigns every account its own "default-roles-onepiece"
@@ -56,9 +61,9 @@ test('an admin sees the full crew manifest with every role and status represente
 test('a non-admin cannot reach the crew manifest', async ({ page }) => {
   await login(page, NON_ADMIN);
 
-  // The header also shows the signed-in email (persistent chrome), so scope
-  // to the main "Signed in as" card to keep this locator unambiguous.
-  await expect(page.getByRole('main').getByText('nami@onepiece.local')).toBeVisible();
+  // The header also shows the signed-in username (persistent chrome), so
+  // scope to the main "Signed in as" card to keep this locator unambiguous.
+  await expect(page.getByRole('main').getByText('nami', { exact: true })).toBeVisible();
   await expect(page.getByRole('link', { name: /Crew Manifest/ })).toHaveCount(0);
 
   // The backend is the actual authority here (UF-IDU-16/SecurityConfig
