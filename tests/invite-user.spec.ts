@@ -104,8 +104,9 @@ test('a non-admin cannot invite a new crewmate', async ({ page }) => {
 
   // The UI never renders the entry point for a non-admin (admin-user-list.spec.ts),
   // but the write endpoint itself is the real authority - a direct call must be
-  // denied too, exactly like the read endpoint (UF-IDU-16/SecurityConfig "/admin/**").
-  const response = await page.request.post('/api/admin/users', {
+  // denied too, exactly like the read endpoint (gated on the users:invite
+  // permission, per SecurityConfig's SecuredEndpoint).
+  const response = await page.request.post('/api/users', {
     data: { email: uniqueEmail('carrot'), roles: ['EDITOR'] },
   });
   expect(response.status()).toBe(403);

@@ -66,9 +66,9 @@ test('a non-admin cannot reach the crew manifest', async ({ page }) => {
   await expect(page.getByRole('main').getByText('nami', { exact: true })).toBeVisible();
   await expect(page.getByRole('link', { name: /Crew Manifest/ })).toHaveCount(0);
 
-  // The backend is the actual authority here (UF-IDU-16/SecurityConfig
-  // "/admin/**" -> hasRole("ADMIN")) - direct navigation must still be
-  // denied even though the UI never renders a link to get here.
-  await page.goto('/admin/users');
+  // The backend is the actual authority here (UF-IDU-16/SecurityConfig's
+  // SecuredEndpoint, gated on the users:read permission) - direct navigation
+  // must still be denied even though the UI never renders a link to get here.
+  await page.goto('/users');
   await expect(page.getByText(/Lost the manifest/)).toBeVisible();
 });

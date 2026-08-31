@@ -46,7 +46,7 @@ async function inviteUser(
 }
 
 async function findUserId(page: Page, email: string): Promise<string> {
-  const response = await page.request.get('/api/admin/users?page=0&size=100');
+  const response = await page.request.get('/api/users?page=0&size=100');
   const body = await response.json();
   const match = (body.content as Array<{ userId: string; email: string }>).find(
     (user) => user.email === email,
@@ -70,7 +70,7 @@ test('resending a still-valid invitation is rejected', async ({ page }) => {
   await expect(row.getByRole('button', { name: /Resend Invitation/ })).toHaveCount(0);
 
   const response = await page.request.post(
-    `/api/admin/users/${invited.userId}/resend-invitation`,
+    `/api/users/${invited.userId}/resend-invitation`,
   );
   expect(response.status()).toBe(409);
   expect((await response.json()).errorCode).toBe('USER_INVITATION_NOT_RESENDABLE');
@@ -80,7 +80,7 @@ test('resending an invitation for an unknown user is rejected', async ({ page })
   await login(page, ADMIN);
 
   const response = await page.request.post(
-    '/api/admin/users/00000000-0000-0000-0000-000000000000/resend-invitation',
+    '/api/users/00000000-0000-0000-0000-000000000000/resend-invitation',
   );
   expect(response.status()).toBe(404);
   expect((await response.json()).errorCode).toBe('USER_NOT_FOUND');
@@ -90,7 +90,7 @@ test('resending an invitation for an already-active user is rejected', async ({ 
   await login(page, ADMIN);
 
   const luffyId = await findUserId(page, LUFFY_EMAIL);
-  const response = await page.request.post(`/api/admin/users/${luffyId}/resend-invitation`);
+  const response = await page.request.post(`/api/users/${luffyId}/resend-invitation`);
   expect(response.status()).toBe(409);
   expect((await response.json()).errorCode).toBe('USER_INVITATION_NOT_RESENDABLE');
 });
