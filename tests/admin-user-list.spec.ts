@@ -7,7 +7,10 @@ import { expect, Page, test } from '@playwright/test';
 // deliberate spread of roles and account statuses (luffy: ADMIN/active,
 // nami: EDITOR/active, zoro: REVIEWER/active, sanji: EDITOR/disabled,
 // usopp: EDITOR/pending) so this suite exercises the listing (UF-IDU-17)
-// against realistic, varied data rather than a single user.
+// against realistic, varied data rather than a single user. Three more
+// accounts come from onepiece-infrastructure/scripts/seed-content-qa-users.sh
+// (chopper: EDITOR, vivi: PUBLISHER, law: EDITOR + REVIEWER), seeded for the
+// content editorial workflow - same password convention.
 const ADMIN = { username: 'luffy', password: 'luffy-change-me' };
 const NON_ADMIN = { username: 'nami', password: 'nami-change-me' };
 
@@ -27,10 +30,10 @@ test('an admin sees the full crew manifest with every role and status represente
   await expect(page.getByRole('heading', { name: /Crew Manifest/ })).toBeVisible();
 
   const rows = page.locator('table tbody tr');
-  await expect(rows).toHaveCount(5);
+  await expect(rows).toHaveCount(8);
 
   // Rows are identified by username now (UF-IDU-02/§2 of
-  // application-user-identity-management.md) - all five seeded users have a
+  // application-user-identity-management.md) - all seeded users have a
   // real, distinct-from-email username since they're seeded directly rather
   // than provisioned through the invite flow (where username defaults to the
   // email placeholder until activation).
@@ -51,6 +54,13 @@ test('an admin sees the full crew manifest with every role and status represente
 
   const usoppRow = rows.filter({ hasText: 'usopp' });
   await expect(usoppRow.getByText('Pending')).toBeVisible();
+
+  const viviRow = rows.filter({ hasText: 'vivi' });
+  await expect(viviRow.getByText('PUBLISHER', { exact: true })).toBeVisible();
+
+  const lawRow = rows.filter({ hasText: 'law' });
+  await expect(lawRow.getByText('EDITOR', { exact: true })).toBeVisible();
+  await expect(lawRow.getByText('REVIEWER', { exact: true })).toBeVisible();
 
   // Keycloak assigns every account its own "default-roles-onepiece"
   // composite role automatically - it must never leak into the listing as
