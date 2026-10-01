@@ -1,4 +1,5 @@
 import { expect, Page, test } from '@playwright/test';
+import { cardStatus, crewCard, pickRole } from './support/crew-manifest';
 
 // Credentials for users seeded declaratively by
 // onepiece-infrastructure/keycloak/realm-onepiece.json - see
@@ -34,7 +35,7 @@ async function inviteUser(
 ): Promise<{ userId: string; email: string }> {
   await page.getByRole('button', { name: 'New User' }).click();
   await page.getByLabel('Email').fill(email);
-  await page.getByRole('checkbox', { name: role }).check();
+  await pickRole(page, role);
   await page.getByRole('button', { name: /Send Invitation/ }).click();
 
   // Reading the POST response body directly (page.waitForResponse(...).json()) raced
@@ -64,10 +65,12 @@ test('resending a still-valid invitation is rejected', async ({ page }) => {
   const email = uniqueEmail('brook');
   const invited = await inviteUser(page, email);
 
-  const row = page.locator('table tbody tr').filter({ hasText: email });
-  await expect(row.getByText('Pending')).toBeVisible();
-  // The link is still within its own lifespan - the UI never offers resend for it.
-  await expect(row.getByRole('button', { name: /Resend Invitation/ })).toHaveCount(0);
+  await expect(cardStatus(crewCard(page, email), 'Pending')).toBeVisible();
+  // The link is still within its own lifespan - the UI never offers resend for it
+  // (resend lives on the crewmate's detail page, not in the listing).
+  await crewCard(page, email).getByRole('link', { name: /Details/ }).click();
+  await expect(page.getByText(email, { exact: true }).first()).toBeVisible();
+  await expect(page.getByRole('button', { name: /Resend Invitation/ })).toHaveCount(0);
 
   const response = await page.request.post(
     `/api/users/${invited.userId}/resend-invitation`,
@@ -105,18 +108,20 @@ test('an admin resends an expired invitation and the crewmate becomes pending ag
 
   const email = uniqueEmail('jinbe');
   await inviteUser(page, email);
-  const row = page.locator('table tbody tr').filter({ hasText: email });
+  const card = crewCard(page, email);
 
   // No polling interval shorter than the current link's own lifespan would ever observe
   // it going stale - reload until the admin-events-derived status catches up.
   await expect(async () => {
     await page.reload();
-    await expect(row.getByText('Invite Expired')).toBeVisible({ timeout: 1_000 });
+    await expect(cardStatus(card, 'Invite Expired')).toBeVisible({ timeout: 1_000 });
   }).toPass({ timeout: 30_000, intervals: [1_000] });
 
-  await row.getByRole('button', { name: /Resend Invitation/ }).click();
+  // Resend is offered on the detail page, reached from the card's "Details" link.
+  await card.getByRole('link', { name: /Details/ }).click();
+  await page.getByRole('button', { name: /Resend Invitation/ }).click();
 
   await expect(page.getByText(new RegExp(`Resent the invitation to ${email}`))).toBeVisible();
-  await expect(row.getByText('Pending')).toBeVisible();
-  await expect(row.getByRole('button', { name: /Resend Invitation/ })).toHaveCount(0);
+  await expect(page.getByText('Pending', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Resend Invitation/ })).toHaveCount(0);
 });

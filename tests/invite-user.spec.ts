@@ -1,4 +1,5 @@
 import { expect, Page, test } from '@playwright/test';
+import { cardStatus, crewCard, pickRole } from './support/crew-manifest';
 
 // Credentials for users seeded declaratively by
 // onepiece-infrastructure/keycloak/realm-onepiece.json - see
@@ -28,13 +29,13 @@ test('an admin invites a new crewmate and sees them appear as pending', async ({
 
   const email = uniqueEmail('robin');
   await page.getByLabel('Email').fill(email);
-  await page.getByRole('checkbox', { name: 'EDITOR' }).check();
+  await pickRole(page, 'EDITOR');
   await page.getByRole('button', { name: /Send Invitation/ }).click();
 
   await expect(page.getByText(new RegExp(`Invitation sent to ${email}`))).toBeVisible();
 
-  const row = page.locator('table tbody tr').filter({ hasText: email });
-  await expect(row.getByText('Pending')).toBeVisible();
+  const row = crewCard(page, email);
+  await expect(cardStatus(row, 'Pending')).toBeVisible();
   await expect(row.getByText('EDITOR', { exact: true })).toBeVisible();
 });
 
@@ -45,7 +46,7 @@ test('inviting an already-registered email is rejected', async ({ page }) => {
 
   // luffy@onepiece.local is the seeded bootstrap admin - always registered.
   await page.getByLabel('Email').fill('luffy@onepiece.local');
-  await page.getByRole('checkbox', { name: 'ADMIN' }).check();
+  await pickRole(page, 'ADMIN');
   await page.getByRole('button', { name: /Send Invitation/ }).click();
 
   await expect(page.getByText(/already registered/)).toBeVisible();
@@ -58,14 +59,14 @@ test('an admin invites a crewmate with more than one role', async ({ page }) => 
 
   const email = uniqueEmail('franky');
   await page.getByLabel('Email').fill(email);
-  await page.getByRole('checkbox', { name: 'ADMIN' }).check();
-  await page.getByRole('checkbox', { name: 'REVIEWER' }).check();
+  await pickRole(page, 'ADMIN');
+  await pickRole(page, 'REVIEWER');
   await page.getByRole('button', { name: /Send Invitation/ }).click();
 
   await expect(page.getByText(new RegExp(`Invitation sent to ${email}`))).toBeVisible();
 
-  const row = page.locator('table tbody tr').filter({ hasText: email });
-  await expect(row.getByText('Pending')).toBeVisible();
+  const row = crewCard(page, email);
+  await expect(cardStatus(row, 'Pending')).toBeVisible();
   await expect(row.getByText('ADMIN', { exact: true })).toBeVisible();
   await expect(row.getByText('REVIEWER', { exact: true })).toBeVisible();
   // Only the two checked roles - not every role in the form.
@@ -92,7 +93,7 @@ test('the invite form rejects a malformed email address', async ({ page }) => {
   await page.getByRole('button', { name: 'New User' }).click();
 
   await page.getByLabel('Email').fill('not-an-email');
-  await page.getByRole('checkbox', { name: 'EDITOR' }).check();
+  await pickRole(page, 'EDITOR');
   await page.getByRole('button', { name: /Send Invitation/ }).click();
 
   await expect(page.getByText(/no proper email address/)).toBeVisible();

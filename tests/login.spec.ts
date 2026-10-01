@@ -16,10 +16,10 @@ test('an authenticated pirate sees their identity and can abandon ship', async (
   await page.locator('#password').fill(PASSWORD);
   await page.locator('#kc-login').click();
 
-  // The header also shows the signed-in username (persistent chrome), so scope
-  // to the main "Signed in as" card to keep this locator unambiguous.
-  await expect(page.getByRole('main').getByText('luffy', { exact: true })).toBeVisible();
-  await expect(page.getByText('ADMIN')).toBeVisible();
+  // The page title is the signed-in username; the identity card repeats it, so
+  // target the heading to keep this locator unambiguous.
+  await expect(page.getByRole('heading', { level: 1, name: 'luffy' })).toBeVisible();
+  await expect(page.getByRole('main').getByText('ADMIN', { exact: true })).toBeVisible();
 
   // "Log Out" per the navbar's plain, professional copy (system chrome
   // drops the pirate tone by design - see root CLAUDE.md UI/UX guidelines).

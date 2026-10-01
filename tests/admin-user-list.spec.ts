@@ -1,4 +1,5 @@
 import { expect, Page, test } from '@playwright/test';
+import { cardStatus, crewCard, crewCards } from './support/crew-manifest';
 
 // Credentials for users seeded declaratively by
 // onepiece-infrastructure/keycloak/realm-onepiece.json — not secrets, they
@@ -29,7 +30,7 @@ test('an admin sees the full crew manifest with every role and status represente
   await page.getByRole('link', { name: /Crew Manifest/ }).click();
   await expect(page.getByRole('heading', { name: /Crew Manifest/ })).toBeVisible();
 
-  const rows = page.locator('table tbody tr');
+  const rows = crewCards(page);
   await expect(rows).toHaveCount(8);
 
   // Rows are identified by username now (UF-IDU-02/§2 of
@@ -37,28 +38,28 @@ test('an admin sees the full crew manifest with every role and status represente
   // real, distinct-from-email username since they're seeded directly rather
   // than provisioned through the invite flow (where username defaults to the
   // email placeholder until activation).
-  const luffyRow = rows.filter({ hasText: 'luffy' });
-  await expect(luffyRow.getByText('Active')).toBeVisible();
+  const luffyRow = crewCard(page, 'luffy');
+  await expect(cardStatus(luffyRow, 'Active')).toBeVisible();
   await expect(luffyRow.getByText('ADMIN', { exact: true })).toBeVisible();
 
-  const namiRow = rows.filter({ hasText: 'nami' });
-  await expect(namiRow.getByText('Active')).toBeVisible();
+  const namiRow = crewCard(page, 'nami');
+  await expect(cardStatus(namiRow, 'Active')).toBeVisible();
   await expect(namiRow.getByText('EDITOR', { exact: true })).toBeVisible();
 
-  const zoroRow = rows.filter({ hasText: 'zoro' });
-  await expect(zoroRow.getByText('Active')).toBeVisible();
+  const zoroRow = crewCard(page, 'zoro');
+  await expect(cardStatus(zoroRow, 'Active')).toBeVisible();
   await expect(zoroRow.getByText('REVIEWER', { exact: true })).toBeVisible();
 
-  const sanjiRow = rows.filter({ hasText: 'sanji' });
-  await expect(sanjiRow.getByText('Disabled')).toBeVisible();
+  const sanjiRow = crewCard(page, 'sanji');
+  await expect(cardStatus(sanjiRow, 'Disabled')).toBeVisible();
 
-  const usoppRow = rows.filter({ hasText: 'usopp' });
-  await expect(usoppRow.getByText('Pending')).toBeVisible();
+  const usoppRow = crewCard(page, 'usopp');
+  await expect(cardStatus(usoppRow, 'Pending')).toBeVisible();
 
-  const viviRow = rows.filter({ hasText: 'vivi' });
+  const viviRow = crewCard(page, 'vivi');
   await expect(viviRow.getByText('PUBLISHER', { exact: true })).toBeVisible();
 
-  const lawRow = rows.filter({ hasText: 'law' });
+  const lawRow = crewCard(page, 'law');
   await expect(lawRow.getByText('EDITOR', { exact: true })).toBeVisible();
   await expect(lawRow.getByText('REVIEWER', { exact: true })).toBeVisible();
 
@@ -71,14 +72,14 @@ test('an admin sees the full crew manifest with every role and status represente
 test('a non-admin cannot reach the crew manifest', async ({ page }) => {
   await login(page, NON_ADMIN);
 
-  // The header also shows the signed-in username (persistent chrome), so
-  // scope to the main "Signed in as" card to keep this locator unambiguous.
-  await expect(page.getByRole('main').getByText('nami', { exact: true })).toBeVisible();
+  // The page title is the signed-in username; the identity card repeats it, so
+  // target the heading to keep this locator unambiguous.
+  await expect(page.getByRole('heading', { level: 1, name: 'nami' })).toBeVisible();
   await expect(page.getByRole('link', { name: /Crew Manifest/ })).toHaveCount(0);
 
-  // The backend is the actual authority here (UF-IDU-16/SecurityConfig's
-  // SecuredEndpoint, gated on the users:read permission) - direct navigation
-  // must still be denied even though the UI never renders a link to get here.
+  // Direct navigation is stopped by the permission-driven route guard (users:read) even
+  // though the UI never renders a link to get here; the backend stays the actual
+  // authority (UF-IDU-16/SecurityConfig's SecuredEndpoint, see invite-user.spec.ts).
   await page.goto('/users');
-  await expect(page.getByText(/Lost the manifest/)).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'This cabin is locked' })).toBeVisible();
 });
