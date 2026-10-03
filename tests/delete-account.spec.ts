@@ -13,7 +13,8 @@ const PASSWORD = 'nami-change-me';
 test('the "Delete My Account" link redirects straight to Keycloak\'s hosted account-deletion flow', async ({
   page,
 }) => {
-  await page.goto('/');
+  // The profile, not '/': the app lands content crew on the Dashboard.
+  await page.goto('/profile');
   await page.locator('#username').fill(USERNAME);
   await page.locator('#password').fill(PASSWORD);
   await page.locator('#kc-login').click();

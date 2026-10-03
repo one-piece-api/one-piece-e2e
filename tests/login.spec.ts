@@ -8,7 +8,8 @@ const USERNAME = 'luffy';
 const PASSWORD = 'luffy-change-me';
 
 test('an authenticated pirate sees their identity and can abandon ship', async ({ page }) => {
-  await page.goto('/');
+  // The profile, not '/': the app lands content crew on the Dashboard.
+  await page.goto('/profile');
 
   // oauth2-proxy redirects the unauthenticated request to Keycloak's login
   // page (default keycloakx theme field ids).
