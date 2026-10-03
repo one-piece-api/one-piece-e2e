@@ -1,8 +1,21 @@
 # one-piece-e2e
 
 Test end-to-end del sistema **One Piece API**: verificano flow utente reali
-(login, `/me`, logout) attraverso l'intero stack — Keycloak, oauth2-proxy,
-`user-service`, `user-frontend` — non un singolo componente isolato.
+attraverso l'intero stack — Keycloak, oauth2-proxy, `user-service`,
+`content-service`, `user-frontend` — non un singolo componente isolato.
+
+| Spec | Flow |
+|---|---|
+| `login`, `delete-account` | accesso, profilo, logout, cancellazione account |
+| `admin-user-list`, `invite-user`, `resend-invitation` | gestione equipaggio (ADMIN) |
+| `editorial-loop` | workflow editoriale dei contenuti, un utente seed per ruolo |
+
+`editorial-loop` usa gli account QA dei contenuti (`chopper`, `vivi`, `law`,
+da `onepiece-infrastructure/scripts/seed-content-qa-users.sh`) e crea a ogni
+run un contenuto con nome univoco.
+
+Gli spec di invito richiedono un SMTP funzionante: Mailpit nell'ambiente `ci`,
+Resend (con `RESEND_API_KEY`) nell'ambiente `default`.
 
 Perché un repo a parte, e come viene provisionato l'ambiente: vedi
 [`docs/adr/0001-e2e-environment-strategy.md`](docs/adr/0001-e2e-environment-strategy.md).
