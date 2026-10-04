@@ -1,8 +1,8 @@
 import { expect, Locator, Page } from '@playwright/test';
 
 /**
- * Writes a complete Devil Fruit Type draft - a romaji, and a name and a description in every
- * language of the catalog - and saves it: review only takes a complete draft. Leaves the page
+ * Writes a complete Devil Fruit Type draft - a romaji and, in every language of the catalog, a
+ * name, a description, advantages and disadvantages - and saves it: review only takes a complete draft. Leaves the page
  * on the new content's card.
  */
 export async function createFruitType(page: Page, name: string): Promise<void> {
@@ -14,7 +14,7 @@ export async function createFruitType(page: Page, name: string): Promise<void> {
   await expect(page).toHaveURL(/\/devil-fruit-types\/[0-9a-f-]{36}$/);
 }
 
-/** Fills the name and the description of the draft in every language tab of the editor. */
+/** Fills every translated field of the draft in every language tab of the editor. */
 export async function fillEveryLanguage(page: Page, name: string, description: string) {
   const tabs = page.getByRole('tab');
   for (let index = 0; index < (await tabs.count()); index++) {
@@ -23,6 +23,8 @@ export async function fillEveryLanguage(page: Page, name: string, description: s
     const language = await tab.getAttribute('title');
     await page.locator('#draft-name').fill(`${name} (${language})`);
     await page.locator('#draft-description').fill(`${description} in ${language}.`);
+    await page.locator('#draft-advantages').fill(`Advantages in ${language}.`);
+    await page.locator('#draft-disadvantages').fill(`Disadvantages in ${language}.`);
   }
 }
 
