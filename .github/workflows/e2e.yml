@@ -111,7 +111,7 @@ jobs:
           echo "PORT_FORWARD_OAUTH2_PROXY_PID=$!" >> "$GITHUB_ENV"
 
           # API HTTP di Mailpit (mock SMTP dell'ambiente "ci", ADR-0008
-          # dell'infra): accept-invitation.spec.ts legge da lì l'email di
+          # dell'infra): invite-accept.spec.ts legge da lì l'email di
           # invito per aprirne il link.
           setsid kubectl port-forward svc/mailpit -n auth 8025:8025 \
             > /tmp/port-forward-mailpit.log 2>&1 < /dev/null &

@@ -48,7 +48,7 @@ Punta a un ambiente diverso da `http://localhost:4180` con `E2E_BASE_URL`.
 Contro un cluster sincronizzato con l'ambiente `default` quel test non vedrà
 mai l'invito scadere entro il proprio timeout.
 
-`accept-invitation.spec.ts` legge l'email di invito da Mailpit (anche lui solo
+`invite-accept.spec.ts` legge l'email di invito da Mailpit (anche lui solo
 nell'ambiente `ci`): serve il port-forward della sua API HTTP, come in CI
 (`kubectl port-forward svc/mailpit -n auth 8025:8025`, oppure `E2E_MAILPIT_URL`).
 

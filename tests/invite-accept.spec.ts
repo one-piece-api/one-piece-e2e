@@ -19,6 +19,10 @@ function uniqueEmail(handle: string): string {
   return `${handle}-${Date.now()}@onepiece.local`;
 }
 
+// Runs after admin-user-list.spec.ts, whose exact count of seeded crewmates the
+// invited one would break: with workers: 1 the files run in alphabetical order
+// (playwright.config.ts).
+//
 // UF-IDU-01 end to end: the invitation email (read from Mailpit) really lets the new
 // crewmate set a password and sign in. Caught a realm regression where every required
 // action but delete_account had been deleted and the link showed an empty step list
