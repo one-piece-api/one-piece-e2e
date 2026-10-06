@@ -27,14 +27,21 @@ test('the "Delete My Account" link redirects straight to Keycloak\'s hosted acco
 
   // No app-side confirmation modal: the link goes straight to Keycloak's own
   // "account" client (never through oauth2-proxy/onepiece-proxy - see
-  // auth-urls.ts), which requires a fresh re-authentication before honoring
-  // "delete_account" even with a live SSO session (Keycloak's own step-up
-  // behavior for this action) - that step-up, plus Keycloak's own explicit
-  // Confirm/Cancel step, is the real confirmation safeguard.
+  // auth-urls.ts). Keycloak asks for the password again before honoring
+  // "delete_account" only when the login is not fresh: it compares times in
+  // whole seconds, so a click within the same second as the login skips the
+  // step-up. Both paths are legitimate - the test follows whichever Keycloak
+  // shows (it used to expect the step-up always, and failed whenever the run
+  // was fast). Keycloak's explicit Confirm/Cancel page below is the safeguard
+  // that is always there.
   await page.getByRole('link', { name: 'Delete My Account' }).click();
-  await expect(page.getByText(/re-enter your password/i)).toBeVisible();
-  await page.locator('#password').fill(PASSWORD);
-  await page.locator('#kc-login').click();
+  const stepUp = page.getByText(/re-enter your password/i);
+  const confirmation = page.getByText(/irreversible/i);
+  await expect(stepUp.or(confirmation)).toBeVisible();
+  if (await stepUp.isVisible()) {
+    await page.locator('#password').fill(PASSWORD);
+    await page.locator('#kc-login').click();
+  }
 
   // Land on Keycloak's own hosted confirmation page - never actually
   // confirmed here (no "Confirm Deletion" click): completing it would
