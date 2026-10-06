@@ -86,7 +86,7 @@ jobs:
         run: ./scripts/setup.sh
         working-directory: infrastructure
 
-      - name: Port-forward su oauth2-proxy e Keycloak
+      - name: Port-forward su oauth2-proxy, Keycloak e Mailpit
         run: |
           # Entrambi, non solo oauth2-proxy: il browser segue il redirect
           # OAuth2 fino a Keycloak sul suo hostname "browser-facing"
@@ -110,14 +110,22 @@ jobs:
             > /tmp/port-forward-oauth2-proxy.log 2>&1 < /dev/null &
           echo "PORT_FORWARD_OAUTH2_PROXY_PID=$!" >> "$GITHUB_ENV"
 
+          # API HTTP di Mailpit (mock SMTP dell'ambiente "ci", ADR-0008
+          # dell'infra): accept-invitation.spec.ts legge da lì l'email di
+          # invito per aprirne il link.
+          setsid kubectl port-forward svc/mailpit -n auth 8025:8025 \
+            > /tmp/port-forward-mailpit.log 2>&1 < /dev/null &
+          echo "PORT_FORWARD_MAILPIT_PID=$!" >> "$GITHUB_ENV"
+
           for _ in $(seq 1 30); do
             if curl -sf -o /dev/null "http://localhost:8080/realms/onepiece" \
-              && curl -sf -o /dev/null "http://localhost:4180/"; then
+              && curl -sf -o /dev/null "http://localhost:4180/" \
+              && curl -sf -o /dev/null "http://localhost:8025/api/v1/info"; then
               exit 0
             fi
             sleep 2
           done
-          echo "keycloak-http e/o oauth2-proxy non raggiungibili dopo 60s" >&2
+          echo "keycloak-http, oauth2-proxy e/o mailpit non raggiungibili dopo 60s" >&2
           exit 1
 
       - name: Esegui la suite e2e
@@ -142,6 +150,10 @@ jobs:
           cat /tmp/port-forward-oauth2-proxy.log 2>/dev/null || echo "(nessun log: il processo non è mai partito)"
           echo "::endgroup::"
 
+          echo "::group::log di kubectl port-forward (mailpit)"
+          cat /tmp/port-forward-mailpit.log 2>/dev/null || echo "(nessun log: il processo non è mai partito)"
+          echo "::endgroup::"
+
           echo "::group::kubectl get pods -A"
           kubectl get pods -A -o wide || true
           echo "::endgroup::"
@@ -159,6 +171,7 @@ jobs:
         run: |
           kill "$PORT_FORWARD_KEYCLOAK_PID" 2>/dev/null || true
           kill "$PORT_FORWARD_OAUTH2_PROXY_PID" 2>/dev/null || true
+          kill "$PORT_FORWARD_MAILPIT_PID" 2>/dev/null || true
 
       - name: Distruggi l'ambiente
         if: always()

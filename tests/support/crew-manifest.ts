@@ -14,6 +14,18 @@ export function crewCard(page: Page, text: string): Locator {
 }
 
 /**
+ * The Crew Manifest link lives in the collapsible "Admin" nav group: open the group first
+ * (only when closed - clicking an open group would close it), then follow the link.
+ */
+export async function openCrewManifest(page: Page): Promise<void> {
+  const adminGroup = page.getByRole('button', { name: 'Admin' });
+  if ((await adminGroup.getAttribute('aria-expanded')) !== 'true') {
+    await adminGroup.click();
+  }
+  await page.getByRole('link', { name: /Crew Manifest/ }).click();
+}
+
+/**
  * Role chips in the invite form are labels wrapping a visually hidden (`sr-only`)
  * checkbox, so a real user clicks the label - Playwright's own `check()` on the input
  * is intercepted by that label.

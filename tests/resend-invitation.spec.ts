@@ -10,7 +10,7 @@ const LUFFY_EMAIL = 'luffy@onepiece.local';
 // This whole spec exercises UF-IDU-03's INVITATION_EXPIRED gating (ADR-0004 in
 // one-piece-user-service) against a real Keycloak - which only becomes reachable in a
 // CI-length run because the Helmfile "ci" environment overrides
-// keycloak.invitation.token-lifespan down to PT5S (see onepiece-infrastructure
+// keycloak.invitation.token-lifespan down to PT60S (see onepiece-infrastructure
 // ADR-0006-short-invitation-lifespan-in-ci.md). Against a cluster synced with the
 // "default" environment (plain ./scripts/setup.sh, PT12H) the invitation never actually
 // expires within this suite's timeout - run with HELMFILE_ENVIRONMENT=ci instead.
@@ -101,7 +101,7 @@ test('resending an invitation for an already-active user is rejected', async ({ 
 test('an admin resends an expired invitation and the crewmate becomes pending again', async ({
   page,
 }) => {
-  test.setTimeout(45_000);
+  test.setTimeout(120_000);
 
   await login(page, ADMIN);
   await page.getByRole('link', { name: /Crew Manifest/ }).click();
@@ -115,7 +115,7 @@ test('an admin resends an expired invitation and the crewmate becomes pending ag
   await expect(async () => {
     await page.reload();
     await expect(cardStatus(card, 'Invite Expired')).toBeVisible({ timeout: 1_000 });
-  }).toPass({ timeout: 30_000, intervals: [1_000] });
+  }).toPass({ timeout: 90_000, intervals: [2_000] });
 
   // Resend is offered on the detail page, reached from the card's "Details" link.
   await card.getByRole('link', { name: /Details/ }).click();
