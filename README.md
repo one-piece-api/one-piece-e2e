@@ -52,6 +52,15 @@ mai l'invito scadere entro il proprio timeout.
 nell'ambiente `ci`): serve il port-forward della sua API HTTP, come in CI
 (`kubectl port-forward svc/mailpit -n auth 8025:8025`, oppure `E2E_MAILPIT_URL`).
 
+`public-api.spec.ts` legge l'API pubblica attraverso Envoy, sulla rotta per host
+`api.localhost` (in ogni ambiente, vedi ADR-0024 dell'infra): port-forward al
+Service del proxy sulla porta 8090 (`E2E_API_URL`, host in `E2E_API_HOST`):
+
+```bash
+kubectl port-forward -n envoy-gateway-system \
+  "$(kubectl get svc -n envoy-gateway-system -l app.kubernetes.io/component=proxy -o name)" 8090:80 &
+```
+
 ## CI
 
 `.github/workflows/e2e.yml` fa checkout di `onepiece-infrastructure`,

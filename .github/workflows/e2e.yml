@@ -86,7 +86,7 @@ jobs:
         run: ./scripts/setup.sh
         working-directory: infrastructure
 
-      - name: Port-forward su oauth2-proxy, Keycloak e Mailpit
+      - name: Port-forward su oauth2-proxy, Keycloak, Mailpit ed Envoy
         run: |
           # Entrambi, non solo oauth2-proxy: il browser segue il redirect
           # OAuth2 fino a Keycloak sul suo hostname "browser-facing"
@@ -117,15 +117,26 @@ jobs:
             > /tmp/port-forward-mailpit.log 2>&1 < /dev/null &
           echo "PORT_FORWARD_MAILPIT_PID=$!" >> "$GITHUB_ENV"
 
+          # Envoy (gateway dell'infra, ADR-0024): public-api.spec.ts legge
+          # l'API pubblica dalla stessa rotta per host del remoto, con
+          # "Host: api.localhost". Il Service ha un nome generato, lo si
+          # trova dall'etichetta del proxy.
+          envoy_service="$(kubectl get svc -n envoy-gateway-system \
+            -l app.kubernetes.io/component=proxy -o name)"
+          setsid kubectl port-forward -n envoy-gateway-system "$envoy_service" 8090:80 \
+            > /tmp/port-forward-envoy.log 2>&1 < /dev/null &
+          echo "PORT_FORWARD_ENVOY_PID=$!" >> "$GITHUB_ENV"
+
           for _ in $(seq 1 30); do
             if curl -sf -o /dev/null "http://localhost:8080/realms/onepiece" \
               && curl -sf -o /dev/null "http://localhost:4180/" \
-              && curl -sf -o /dev/null "http://localhost:8025/api/v1/info"; then
+              && curl -sf -o /dev/null "http://localhost:8025/api/v1/info" \
+              && curl -sf -o /dev/null -H "Host: api.localhost" "http://localhost:8090/v1"; then
               exit 0
             fi
             sleep 2
           done
-          echo "keycloak-http, oauth2-proxy e/o mailpit non raggiungibili dopo 60s" >&2
+          echo "keycloak-http, oauth2-proxy, mailpit e/o envoy non raggiungibili dopo 60s" >&2
           exit 1
 
       - name: Esegui la suite e2e
@@ -154,6 +165,10 @@ jobs:
           cat /tmp/port-forward-mailpit.log 2>/dev/null || echo "(nessun log: il processo non è mai partito)"
           echo "::endgroup::"
 
+          echo "::group::log di kubectl port-forward (envoy)"
+          cat /tmp/port-forward-envoy.log 2>/dev/null || echo "(nessun log: il processo non è mai partito)"
+          echo "::endgroup::"
+
           echo "::group::kubectl get pods -A"
           kubectl get pods -A -o wide || true
           echo "::endgroup::"
@@ -172,6 +187,7 @@ jobs:
           kill "$PORT_FORWARD_KEYCLOAK_PID" 2>/dev/null || true
           kill "$PORT_FORWARD_OAUTH2_PROXY_PID" 2>/dev/null || true
           kill "$PORT_FORWARD_MAILPIT_PID" 2>/dev/null || true
+          kill "$PORT_FORWARD_ENVOY_PID" 2>/dev/null || true
 
       - name: Distruggi l'ambiente
         if: always()
