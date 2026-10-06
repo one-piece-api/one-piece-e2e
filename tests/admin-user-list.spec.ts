@@ -1,5 +1,5 @@
 import { expect, Page, test } from '@playwright/test';
-import { cardStatus, crewCard, crewCards } from './support/crew-manifest';
+import { cardStatus, crewCard, crewCards, openCrewManifest } from './support/crew-manifest';
 
 // Credentials for users seeded declaratively by
 // onepiece-infrastructure/keycloak/realm-onepiece.json — not secrets, they
@@ -27,7 +27,7 @@ test('an admin sees the full crew manifest with every role and status represente
 }) => {
   await login(page, ADMIN);
 
-  await page.getByRole('link', { name: /Crew Manifest/ }).click();
+  await openCrewManifest(page);
   await expect(page.getByRole('heading', { name: /Crew Manifest/ })).toBeVisible();
 
   const rows = crewCards(page);

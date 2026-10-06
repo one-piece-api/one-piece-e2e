@@ -1,5 +1,5 @@
 import { expect, Page, test } from '@playwright/test';
-import { cardStatus, crewCard, pickRole } from './support/crew-manifest';
+import { cardStatus, crewCard, openCrewManifest, pickRole } from './support/crew-manifest';
 
 // Credentials for users seeded declaratively by
 // onepiece-infrastructure/keycloak/realm-onepiece.json - see
@@ -24,7 +24,7 @@ function uniqueEmail(handle: string): string {
 
 test('an admin invites a new crewmate and sees them appear as pending', async ({ page }) => {
   await login(page, ADMIN);
-  await page.getByRole('link', { name: /Crew Manifest/ }).click();
+  await openCrewManifest(page);
   await page.getByRole('button', { name: 'New User' }).click();
 
   const email = uniqueEmail('robin');
@@ -41,7 +41,7 @@ test('an admin invites a new crewmate and sees them appear as pending', async ({
 
 test('inviting an already-registered email is rejected', async ({ page }) => {
   await login(page, ADMIN);
-  await page.getByRole('link', { name: /Crew Manifest/ }).click();
+  await openCrewManifest(page);
   await page.getByRole('button', { name: 'New User' }).click();
 
   // luffy@onepiece.local is the seeded bootstrap admin - always registered.
@@ -54,7 +54,7 @@ test('inviting an already-registered email is rejected', async ({ page }) => {
 
 test('an admin invites a crewmate with more than one role', async ({ page }) => {
   await login(page, ADMIN);
-  await page.getByRole('link', { name: /Crew Manifest/ }).click();
+  await openCrewManifest(page);
   await page.getByRole('button', { name: 'New User' }).click();
 
   const email = uniqueEmail('franky');
@@ -77,7 +77,7 @@ test('the invite form rejects an empty email and no role without calling the bac
   page,
 }) => {
   await login(page, ADMIN);
-  await page.getByRole('link', { name: /Crew Manifest/ }).click();
+  await openCrewManifest(page);
   await page.getByRole('button', { name: 'New User' }).click();
 
   await page.getByRole('button', { name: /Send Invitation/ }).click();
@@ -89,7 +89,7 @@ test('the invite form rejects an empty email and no role without calling the bac
 
 test('the invite form rejects a malformed email address', async ({ page }) => {
   await login(page, ADMIN);
-  await page.getByRole('link', { name: /Crew Manifest/ }).click();
+  await openCrewManifest(page);
   await page.getByRole('button', { name: 'New User' }).click();
 
   await page.getByLabel('Email').fill('not-an-email');

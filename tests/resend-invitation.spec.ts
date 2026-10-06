@@ -1,5 +1,5 @@
 import { expect, Page, test } from '@playwright/test';
-import { cardStatus, crewCard, pickRole } from './support/crew-manifest';
+import { cardStatus, crewCard, openCrewManifest, pickRole } from './support/crew-manifest';
 
 // Credentials for users seeded declaratively by
 // onepiece-infrastructure/keycloak/realm-onepiece.json - see
@@ -60,7 +60,7 @@ async function findUserId(page: Page, email: string): Promise<string> {
 
 test('resending a still-valid invitation is rejected', async ({ page }) => {
   await login(page, ADMIN);
-  await page.getByRole('link', { name: /Crew Manifest/ }).click();
+  await openCrewManifest(page);
 
   const email = uniqueEmail('brook');
   const invited = await inviteUser(page, email);
@@ -104,7 +104,7 @@ test('an admin resends an expired invitation and the crewmate becomes pending ag
   test.setTimeout(120_000);
 
   await login(page, ADMIN);
-  await page.getByRole('link', { name: /Crew Manifest/ }).click();
+  await openCrewManifest(page);
 
   const email = uniqueEmail('jinbe');
   await inviteUser(page, email);
