@@ -9,8 +9,10 @@ attraverso l'intero stack — Keycloak, oauth2-proxy, `user-service`,
 | `login`, `delete-account` | accesso, profilo, logout, cancellazione account |
 | `admin-user-list`, `invite-user`, `resend-invitation` | gestione equipaggio (ADMIN) |
 | `editorial-loop` | workflow editoriale dei contenuti, un utente seed per ruolo |
+| `public-api` | contenuto pubblicato letto dall'API pubblica, redirect dello slug, ritiro |
+| `devil-fruit-loop` | frutto con immagine legato al tipo, azioni bloccate, frutto e tipo nell'API pubblica |
 
-`editorial-loop` usa gli account QA dei contenuti (`chopper`, `vivi`, `law`,
+Gli spec dei contenuti usano gli account QA dei contenuti (`chopper`, `vivi`, `law`,
 da `onepiece-infrastructure/scripts/seed-content-qa-users.sh`) e crea a ogni
 run un contenuto con nome univoco.
 
