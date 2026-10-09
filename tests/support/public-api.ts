@@ -20,6 +20,23 @@ export function getPublic(request: APIRequestContext, path: string): Promise<API
   return request.get(`${API_URL}${path}`, { headers: { Host: API_HOST }, maxRedirects: 0 });
 }
 
+export interface PublicDevilFruit {
+  id: string;
+  slug: string;
+  name: string;
+  /** Relative to the API root, e.g. `v1/images/<id>.png`. */
+  image: string;
+  type: PublicFruitType;
+}
+
+export interface PublicFruitTypeDetail extends PublicFruitType {
+  devilFruits: Omit<PublicDevilFruit, 'type'>[];
+}
+
+export function devilFruitPath(language: string, idOrSlug = ''): string {
+  return `/v1/${language}/devil-fruits${idOrSlug ? `/${idOrSlug}` : ''}`;
+}
+
 export function fruitTypePath(language: string, idOrSlug: string): string {
   return `/v1/${language}/devil-fruit-types/${idOrSlug}`;
 }
