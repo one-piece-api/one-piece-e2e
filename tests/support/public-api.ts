@@ -20,6 +20,12 @@ export function getPublic(request: APIRequestContext, path: string): Promise<API
   return request.get(`${API_URL}${path}`, { headers: { Host: API_HOST }, maxRedirects: 0 });
 }
 
+export interface PublicSubcategory {
+  id: string;
+  name: string;
+  description?: string;
+}
+
 export interface PublicDevilFruit {
   id: string;
   slug: string;
@@ -27,9 +33,11 @@ export interface PublicDevilFruit {
   /** Relative to the API root, e.g. `v1/images/<id>.png`. */
   image: string;
   type: PublicFruitType;
+  subcategory: PublicSubcategory | null;
 }
 
 export interface PublicFruitTypeDetail extends PublicFruitType {
+  subcategories: PublicSubcategory[];
   devilFruits: Omit<PublicDevilFruit, 'type'>[];
 }
 

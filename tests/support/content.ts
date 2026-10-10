@@ -3,13 +3,20 @@ import { UploadFile } from './png';
 
 /**
  * Writes a complete Devil Fruit Type draft - a romaji and, in every language of the catalog, a
- * name, a description, advantages and disadvantages - and saves it: review only takes a complete draft. Leaves the page
+ * name, a description, advantages and disadvantages, plus the named subcategories - and saves it: review only takes a complete draft. Leaves the page
  * on the new content's card.
  */
-export async function createFruitType(page: Page, name: string): Promise<void> {
+export async function createFruitType(
+  page: Page,
+  name: string,
+  subcategories: string[] = [],
+): Promise<void> {
   await page.goto('/content/devil-fruit-types/new');
   await page.getByLabel('Romaji').fill(`${name}-kei`);
-  await fillEveryLanguage(page, name, 'Written by the e2e suite');
+  for (let added = 0; added < subcategories.length; added++) {
+    await page.getByTestId('subcategory-add').click();
+  }
+  await fillEveryLanguage(page, name, 'Written by the e2e suite', subcategories);
   await page.getByRole('button', { name: 'Save draft' }).click();
   await expect(page.getByText(/New draft aboard/)).toBeVisible();
   await expect(page).toHaveURL(/\/devil-fruit-types\/[0-9a-f-]{36}$/);
@@ -25,6 +32,7 @@ export async function createDevilFruit(
   name: string,
   typeName: string,
   image: UploadFile,
+  subcategory?: string,
 ): Promise<void> {
   await page.goto('/content/devil-fruits/new');
   await page.getByLabel('Romaji').fill(`${name} no Mi`);
@@ -32,14 +40,26 @@ export async function createDevilFruit(
   await expect(page.getByTestId('image-preview')).toBeVisible();
   await page.locator('#draft-type').fill(typeName);
   await page.getByRole('option', { name: englishName(typeName) }).click();
+  if (subcategory) {
+    const choice = page.locator('#draft-subcategory option', { hasText: subcategory });
+    await page.locator('#draft-subcategory').selectOption(await choice.getAttribute('value'));
+  }
   await fillEveryLanguage(page, name, 'Written by the e2e suite');
   await page.getByRole('button', { name: 'Save draft' }).click();
   await expect(page.getByText(/New draft aboard/)).toBeVisible();
   await expect(page).toHaveURL(/\/devil-fruits\/[0-9a-f-]{36}$/);
 }
 
-/** Fills every translated field of the draft in every language tab of the editor. */
-export async function fillEveryLanguage(page: Page, name: string, description: string) {
+/**
+ * Fills every translated field of the draft in every language tab of the editor, and the
+ * name and description of each subcategory already added (the nth entry gets the nth name).
+ */
+export async function fillEveryLanguage(
+  page: Page,
+  name: string,
+  description: string,
+  subcategories: string[] = [],
+) {
   const tabs = page.getByRole('tab');
   for (let index = 0; index < (await tabs.count()); index++) {
     const tab = tabs.nth(index);
@@ -49,6 +69,14 @@ export async function fillEveryLanguage(page: Page, name: string, description: s
     await page.locator('#draft-description').fill(`${description} in ${language}.`);
     await page.locator('#draft-advantages').fill(`Advantages in ${language}.`);
     await page.locator('#draft-disadvantages').fill(`Disadvantages in ${language}.`);
+    for (const [position, subcategory] of subcategories.entries()) {
+      await page
+        .locator(`#draft-subcategories-${position}-name`)
+        .fill(`${subcategory} (${language})`);
+      await page
+        .locator(`#draft-subcategories-${position}-description`)
+        .fill(`${subcategory} described in ${language}.`);
+    }
   }
 }
 
