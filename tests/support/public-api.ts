@@ -48,3 +48,16 @@ export function devilFruitPath(language: string, idOrSlug = ''): string {
 export function fruitTypePath(language: string, idOrSlug: string): string {
   return `/v1/${language}/devil-fruit-types/${idOrSlug}`;
 }
+
+/** The public address of a story entity (`sagas`, `arcs`, ...), a listing or one slug / id. */
+export function storyPath(language: string, entity: string, idOrSlug = ''): string {
+  return `/v1/${language}/${entity}${idOrSlug ? `/${idOrSlug}` : ''}`;
+}
+
+export interface PublicStorySpan {
+  count: number;
+  firstNumber: number | null;
+  lastNumber: number | null;
+  firstDate: string | null;
+  lastDate: string | null;
+}
