@@ -13,6 +13,7 @@ attraverso l'intero stack — Keycloak, oauth2-proxy, `user-service`,
 | `devil-fruit-loop` | frutto con immagine legato al tipo, azioni bloccate, frutto e tipo nell'API pubblica |
 | `devil-fruit-subcategories` | tipo con sottocategorie, frutto che ne sceglie una, API pubblica, versione del tipo rifiutata se toglie una sottocategoria in uso |
 | `story-structure-loop` | catena Saga → Arco → Volume → Capitolo → Episodio via API del content-service (sessioni reali), publish in ordine, intervalli/date solo da contenuti online (solo JP), filtri e blocchi `RELATED_NOT_ONLINE` / `ONLINE_ITEMS_LINKED` |
+| `spoiler-loop` | Gomu Gomu con una rivelazione (via API del content-service) letto dall'API pubblica ai capitoli 1, 1043, 1044 e senza filtro (`asOfChapter`), `404` su ciò che il lettore non ha ancora incontrato; capitoli numerati da una base nuova a ogni run |
 
 Gli spec dei contenuti usano gli account QA dei contenuti (`chopper`, `vivi`, `law`,
 da `onepiece-infrastructure/scripts/seed-content-qa-users.sh`) e crea a ogni
@@ -56,7 +57,7 @@ mai l'invito scadere entro il proprio timeout.
 nell'ambiente `ci`): serve il port-forward della sua API HTTP, come in CI
 (`kubectl port-forward svc/mailpit -n auth 8025:8025`, oppure `E2E_MAILPIT_URL`).
 
-`public-api.spec.ts` legge l'API pubblica attraverso Envoy, sulla rotta per host
+`public-api.spec.ts` (come tutti gli spec che leggono l'API pubblica) legge l'API pubblica attraverso Envoy, sulla rotta per host
 `api.localhost` (in ogni ambiente, vedi ADR-0024 dell'infra): port-forward al
 Service del proxy sulla porta 8090 (`E2E_API_URL`, host in `E2E_API_HOST`):
 
