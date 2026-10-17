@@ -1,5 +1,6 @@
 import { expect, Locator, Page, test } from '@playwright/test';
 import { signIn } from './support/crew';
+import { onlineChapter } from './support/story';
 import {
   actOnRoute,
   actOnRow,
@@ -30,26 +31,27 @@ function uniqueName(): string {
 test('a fruit type goes from draft to online, gets a second version, and is retired and republished', async ({
   browser,
 }) => {
-  test.setTimeout(90_000);
+  test.setTimeout(120_000);
   const name = uniqueName();
-
-  // An editor writes the first version and sends it to review.
   const chopper = await signIn(browser, 'chopper');
   await expect(chopper).toHaveURL(/\/dashboard$/);
-  await createFruitType(chopper, name);
+  const zoro = await signIn(browser, 'zoro');
+  const vivi = await signIn(browser, 'vivi');
+  const chapter = await onlineChapter({ editor: chopper, reviewer: zoro, publisher: vivi });
+
+  // An editor writes the first version and sends it to review.
+  await createFruitType(chopper, name, chapter);
   const card = chopper.url();
   await actOnRoute(chopper, 'Submit for review');
   await expect(denDenMushi(chopper)).toContainText('Submitted for review');
 
   // A reviewer claims it from the Review page, then approves it.
-  const zoro = await signIn(browser, 'zoro');
   await actOnRow(zoro, 'in-review', name, 'CLAIM');
   await expect(denDenMushi(zoro)).toContainText('Claimed');
   await actOnRow(zoro, 'in-review', name, 'APPROVE');
   await expect(denDenMushi(zoro)).toContainText('Approved');
 
   // A publisher puts it online, behind a confirmation.
-  const vivi = await signIn(browser, 'vivi');
   await actOnRow(vivi, 'ready', name, 'PUBLISH');
   await confirm(vivi);
   await expect(denDenMushi(vivi)).toContainText('v1 is online');
@@ -98,7 +100,13 @@ test('nobody reviews their own work, not even an editor who is also a reviewer',
   const name = uniqueName();
 
   const law = await signIn(browser, 'law');
-  await createFruitType(law, name);
+  const zoro = await signIn(browser, 'zoro');
+  const chapter = await onlineChapter({
+    editor: law,
+    reviewer: zoro,
+    publisher: await signIn(browser, 'vivi'),
+  });
+  await createFruitType(law, name, chapter);
   const contentId = new URL(law.url()).pathname.split('/').pop();
   await actOnRoute(law, 'Submit for review');
   await expect(denDenMushi(law)).toContainText('Submitted for review');
@@ -116,7 +124,6 @@ test('nobody reviews their own work, not even an editor who is also a reviewer',
   expect(claim.status()).toBe(403);
 
   // Any other reviewer may take it.
-  const zoro = await signIn(browser, 'zoro');
   await zoro.goto('/dashboard/in-review');
   await expect(statusRow(zoro, name).locator('[data-action="CLAIM"]')).toBeVisible();
 });

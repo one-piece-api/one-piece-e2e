@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { signIn } from './support/crew';
+import { onlineChapter } from './support/story';
 import {
   actOnRoute,
   actOnRow,
@@ -37,9 +38,10 @@ test('a fruit names a subcategory of its type, and an online fruit keeps it onli
   const chopper = await signIn(browser, 'chopper');
   const zoro = await signIn(browser, 'zoro');
   const vivi = await signIn(browser, 'vivi');
+  const chapter = await onlineChapter({ editor: chopper, reviewer: zoro, publisher: vivi });
 
   // The type with its subcategories goes online.
-  await createFruitType(chopper, typeName, subcategories);
+  await createFruitType(chopper, typeName, chapter, subcategories);
   const typeCard = chopper.url();
   await actOnRoute(chopper, 'Submit for review');
   await expect(denDenMushi(chopper)).toContainText('Submitted for review');
@@ -51,7 +53,7 @@ test('a fruit names a subcategory of its type, and an online fruit keeps it onli
   await expect(denDenMushi(vivi)).toContainText('v1 is online');
 
   // A fruit picks one of them and goes online.
-  await createDevilFruit(chopper, fruitName, typeName, fruitImage(), mythical);
+  await createDevilFruit(chopper, fruitName, typeName, chapter, fruitImage(), mythical);
   const fruitId = chopper.url().split('/').pop()!;
   await actOnRoute(chopper, 'Submit for review');
   await expect(denDenMushi(chopper)).toContainText('Submitted for review');

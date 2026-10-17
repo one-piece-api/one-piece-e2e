@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { signIn } from './support/crew';
+import { onlineChapter } from './support/story';
 import {
   actOnRoute,
   actOnRow,
@@ -36,19 +37,21 @@ test('a fruit is linked to a reviewed type, goes online after it, and keeps it o
 
   // The type is written and approved, but stays offline for now.
   const chopper = await signIn(browser, 'chopper');
-  await createFruitType(chopper, typeName);
+  const zoro = await signIn(browser, 'zoro');
+  const vivi = await signIn(browser, 'vivi');
+  const chapter = await onlineChapter({ editor: chopper, reviewer: zoro, publisher: vivi });
+  await createFruitType(chopper, typeName, chapter);
   const typeCard = chopper.url();
   await actOnRoute(chopper, 'Submit for review');
   await expect(denDenMushi(chopper)).toContainText('Submitted for review');
 
-  const zoro = await signIn(browser, 'zoro');
   await actOnRow(zoro, 'in-review', typeName, 'CLAIM');
   await expect(denDenMushi(zoro)).toContainText('Claimed');
   await actOnRow(zoro, 'in-review', typeName, 'APPROVE');
   await expect(denDenMushi(zoro)).toContainText('Approved');
 
   // The fruit links the approved type - the type search offers it - and carries an image.
-  await createDevilFruit(chopper, fruitName, typeName, fruitImage());
+  await createDevilFruit(chopper, fruitName, typeName, chapter, fruitImage());
   const fruitCard = chopper.url();
   await actOnRoute(chopper, 'Submit for review');
   await expect(denDenMushi(chopper)).toContainText('Submitted for review');
@@ -59,7 +62,6 @@ test('a fruit is linked to a reviewed type, goes online after it, and keeps it o
 
   // Ready, but its type is not online. Rows do not know what is blocked (user-frontend
   // ADR-0004): trying from one is refused with the reason, and the card says it upfront.
-  const vivi = await signIn(browser, 'vivi');
   await actOnRow(vivi, 'ready', fruitName, 'PUBLISH');
   await confirm(vivi);
   await expect(denDenMushi(vivi)).toContainText("This fruit's type is not online");
