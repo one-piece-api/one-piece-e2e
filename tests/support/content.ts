@@ -3,16 +3,19 @@ import { UploadFile } from './png';
 
 /**
  * Writes a complete Devil Fruit Type draft - a romaji and, in every language of the catalog, a
- * name, a description, advantages and disadvantages, plus the named subcategories - and saves it: review only takes a complete draft. Leaves the page
- * on the new content's card.
+ * name, a description, advantages and disadvantages, plus the named subcategories - and its
+ * first appearance at chapter `firstAppearance`, then saves it: review only takes a complete
+ * draft. Leaves the page on the new content's card.
  */
 export async function createFruitType(
   page: Page,
   name: string,
+  firstAppearance: number,
   subcategories: string[] = [],
 ): Promise<void> {
   await page.goto('/content/devil-fruit-types/new');
   await page.getByLabel('Romaji').fill(`${name}-kei`);
+  await pickFirstAppearance(page, firstAppearance);
   for (let added = 0; added < subcategories.length; added++) {
     await page.getByTestId('subcategory-add').click();
   }
@@ -24,13 +27,14 @@ export async function createFruitType(
 
 /**
  * Writes a complete Devil Fruit draft - a romaji, an image, the type named `typeName` picked
- * from the type search, and every language filled - and saves it. Leaves the page on the new
- * content's card.
+ * from the type search, its first appearance at chapter `firstAppearance`, and every language
+ * filled - and saves it. Leaves the page on the new content's card.
  */
 export async function createDevilFruit(
   page: Page,
   name: string,
   typeName: string,
+  firstAppearance: number,
   image: UploadFile,
   subcategory?: string,
 ): Promise<void> {
@@ -44,10 +48,17 @@ export async function createDevilFruit(
     const choice = page.locator('#draft-subcategory option', { hasText: subcategory });
     await page.locator('#draft-subcategory').selectOption(await choice.getAttribute('value'));
   }
+  await pickFirstAppearance(page, firstAppearance);
   await fillEveryLanguage(page, name, 'Written by the e2e suite');
   await page.getByRole('button', { name: 'Save draft' }).click();
   await expect(page.getByText(/New draft aboard/)).toBeVisible();
   await expect(page).toHaveURL(/\/devil-fruits\/[0-9a-f-]{36}$/);
+}
+
+/** Picks the chapter numbered `chapter` as the first appearance, from the chapter search. */
+async function pickFirstAppearance(page: Page, chapter: number): Promise<void> {
+  await page.locator('#draft-firstAppearance').fill(String(chapter));
+  await page.getByRole('option', { name: `Ch. ${chapter} —` }).click();
 }
 
 /**

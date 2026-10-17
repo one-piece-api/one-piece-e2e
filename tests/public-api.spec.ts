@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { signIn } from './support/crew';
+import { onlineChapter } from './support/story';
 import {
   actOnRoute,
   actOnRow,
@@ -30,19 +31,20 @@ test('published content appears in the public API, a new romaji redirects, retir
 
   // v1: written, reviewed and published through the real UI.
   const chopper = await signIn(browser, 'chopper');
-  await createFruitType(chopper, name);
+  const zoro = await signIn(browser, 'zoro');
+  const vivi = await signIn(browser, 'vivi');
+  const chapter = await onlineChapter({ editor: chopper, reviewer: zoro, publisher: vivi });
+  await createFruitType(chopper, name, chapter);
   const card = chopper.url();
   const contentId = card.split('/').pop()!;
   await actOnRoute(chopper, 'Submit for review');
   await expect(denDenMushi(chopper)).toContainText('Submitted for review');
 
-  const zoro = await signIn(browser, 'zoro');
   await actOnRow(zoro, 'in-review', name, 'CLAIM');
   await expect(denDenMushi(zoro)).toContainText('Claimed');
   await actOnRow(zoro, 'in-review', name, 'APPROVE');
   await expect(denDenMushi(zoro)).toContainText('Approved');
 
-  const vivi = await signIn(browser, 'vivi');
   await actOnRow(vivi, 'ready', name, 'PUBLISH');
   await confirm(vivi);
   await expect(denDenMushi(vivi)).toContainText('v1 is online');

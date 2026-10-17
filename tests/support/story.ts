@@ -96,3 +96,21 @@ export async function reasonOf(response: APIResponse): Promise<string> {
   const problem = await response.json();
   return problem.reason;
 }
+
+/**
+ * A chapter online, with the saga and arc it needs, for contents to name as their first
+ * appearance - required to submit a Devil Fruit or its type. Returns its number.
+ */
+export async function onlineChapter(crew: Crew): Promise<number> {
+  const number = freshNumber();
+  const titled = translationsOf(await languageCodes(crew.editor), `E2E Story ${number}`);
+  const saga = await putOnline(crew, 'sagas', { number, translations: titled });
+  const arc = await putOnline(crew, 'arcs', { number, saga, translations: titled });
+  await putOnline(crew, 'chapters', {
+    number,
+    arc,
+    releases: [{ country: 'JP', date: '2020-05-01' }],
+    translations: titled,
+  });
+  return number;
+}
