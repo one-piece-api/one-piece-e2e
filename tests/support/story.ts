@@ -3,6 +3,9 @@ import { APIResponse, expect, Page } from '@playwright/test';
 /** The story entities, as the content API names them (`/api/content/<entity>`). */
 export type StoryEntity = 'sagas' | 'arcs' | 'volumes' | 'chapters' | 'episodes';
 
+/** Every entity the helpers below move through the workflow: the story ones and the bounties. */
+export type ContentEntity = StoryEntity | 'bounties';
+
 /** Who moves a draft along its way to "online" - one identity per role, as in the UI specs. */
 export interface Crew {
   editor: Page;
@@ -42,7 +45,7 @@ export function translationsOf(
 /** Saves a new draft through the content API and returns the id of its content. */
 export async function createDraft(
   page: Page,
-  entity: StoryEntity,
+  entity: ContentEntity,
   body: Record<string, unknown>,
 ): Promise<string> {
   const response = await page.request.post(`/api/content/${entity}`, {
@@ -52,12 +55,12 @@ export async function createDraft(
   return (await response.json()).id;
 }
 
-async function act(page: Page, entity: StoryEntity, id: string, action: string, version = 1) {
+async function act(page: Page, entity: ContentEntity, id: string, action: string, version = 1) {
   return page.request.post(`/api/content/${entity}/${id}/versions/${version}/${action}`);
 }
 
 /** Submits, claims and approves version `version`, leaving it ready to publish. */
-export async function approve(crew: Crew, entity: StoryEntity, id: string, version = 1) {
+export async function approve(crew: Crew, entity: ContentEntity, id: string, version = 1) {
   for (const [page, action] of [
     [crew.editor, 'submit'],
     [crew.reviewer, 'claim'],
@@ -69,19 +72,19 @@ export async function approve(crew: Crew, entity: StoryEntity, id: string, versi
 }
 
 /** Publishes an approved version; the response is the caller's to judge (it may be a 409). */
-export function publish(crew: Crew, entity: StoryEntity, id: string, version = 1) {
+export function publish(crew: Crew, entity: ContentEntity, id: string, version = 1) {
   return act(crew.publisher, entity, id, 'publish', version);
 }
 
 /** Retires the online version; the response is the caller's to judge (it may be a 409). */
-export function retire(crew: Crew, entity: StoryEntity, id: string, version = 1) {
+export function retire(crew: Crew, entity: ContentEntity, id: string, version = 1) {
   return act(crew.publisher, entity, id, 'retire', version);
 }
 
 /** Drafts, reviews and publishes in one go; fails unless the content ends up online. */
 export async function putOnline(
   crew: Crew,
-  entity: StoryEntity,
+  entity: ContentEntity,
   body: Record<string, unknown>,
 ): Promise<string> {
   const id = await createDraft(crew.editor, entity, body);

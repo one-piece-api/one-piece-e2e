@@ -105,6 +105,12 @@ export async function actOnRoute(page: Page, action: string): Promise<void> {
   await page.getByRole('button', { name: new RegExp(`^Click to: ${action}`) }).click();
 }
 
+/** Claims the review from the card's Workflow tab (the claim is not a route node). */
+export async function claimReview(page: Page): Promise<void> {
+  await page.getByRole('tab', { name: /Workflow/ }).click();
+  await page.getByRole('button', { name: 'Click to claim the review' }).click();
+}
+
 /** The actions the card's Workflow tab names as unavailable now, each with its reason. */
 export async function blockedActions(page: Page, card: string): Promise<Locator> {
   await page.goto(card);

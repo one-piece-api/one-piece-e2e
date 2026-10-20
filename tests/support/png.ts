@@ -16,6 +16,19 @@ const RGBA = 6;
  * rather than committed, so the suite carries no binary.
  */
 export function fruitImage(width = 320, height = 400, margin = 20): UploadFile {
+  return solidPng('e2e-fruit.png', width, height, margin);
+}
+
+/**
+ * A PNG the bounty image profile accepts (bounty plan D4): fully opaque, 560 x 800 at least
+ * and close to 7:10, so the backend fits it into its 420 x 600 canvas.
+ */
+export function posterImage(width = 560, height = 800): UploadFile {
+  return solidPng('e2e-poster.png', width, height, 0);
+}
+
+/** An opaque block inset by `margin` pixels on a transparent background, as a PNG upload. */
+function solidPng(name: string, width: number, height: number, margin: number): UploadFile {
   const row = 1 + width * 4;
   const pixels = Buffer.alloc(row * height);
   for (let y = margin; y < height - margin; y++) {
@@ -33,7 +46,7 @@ export function fruitImage(width = 320, height = 400, margin = 20): UploadFile {
     chunk('IDAT', deflateSync(pixels)),
     chunk('IEND', Buffer.alloc(0)),
   ]);
-  return { name: 'e2e-fruit.png', mimeType: 'image/png', buffer };
+  return { name, mimeType: 'image/png', buffer };
 }
 
 /** A PNG chunk: length, type, data and the CRC of type and data. */

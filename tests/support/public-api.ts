@@ -61,3 +61,25 @@ export interface PublicStorySpan {
   firstDate: string | null;
   lastDate: string | null;
 }
+
+export interface PublicBountyLink {
+  id: string;
+  slug: string;
+  posterName: string;
+  amount: number;
+  condition: 'DEAD_OR_ALIVE' | 'ONLY_ALIVE';
+  validity: 'ACTIVE' | 'SUPERSEDED' | 'INACTIVE';
+  /** Relative to the API root, e.g. `v1/images/<id>.png`; null without a poster. */
+  image: string | null;
+}
+
+export interface PublicBounty extends PublicBountyLink {
+  description: string;
+  /** The whole chain of the person's posters, newest first, itself included. */
+  chain: PublicBountyLink[];
+}
+
+/** The public address of the bounties, a listing or one slug / id. */
+export function bountyPath(language: string, idOrSlug = ''): string {
+  return `/v1/${language}/bounties${idOrSlug ? `/${idOrSlug}` : ''}`;
+}
