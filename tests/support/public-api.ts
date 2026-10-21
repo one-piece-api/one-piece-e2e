@@ -83,3 +83,23 @@ export interface PublicBounty extends PublicBountyLink {
 export function bountyPath(language: string, idOrSlug = ''): string {
   return `/v1/${language}/bounties${idOrSlug ? `/${idOrSlug}` : ''}`;
 }
+
+export interface PublicAffiliationSummary {
+  id: string;
+  slug: string;
+  romaji: string;
+  name: string;
+  /** Relative to the API root, e.g. `v1/images/<id>.png`; null without an emblem. */
+  image: string | null;
+}
+
+export interface PublicAffiliation extends PublicAffiliationSummary {
+  language: string;
+  description: string;
+  firstAppearance: { chapter: { number: number } | null; episode: { number: number } | null };
+}
+
+/** The public address of the affiliations, a listing or one slug / id. */
+export function affiliationPath(language: string, idOrSlug = ''): string {
+  return `/v1/${language}/affiliations${idOrSlug ? `/${idOrSlug}` : ''}`;
+}

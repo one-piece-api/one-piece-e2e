@@ -27,6 +27,15 @@ export function posterImage(width = 560, height = 800): UploadFile {
   return solidPng('e2e-poster.png', width, height, 0);
 }
 
+/**
+ * A PNG the affiliation image profile accepts (affiliation plan D5): a square emblem of 512 x
+ * 512 at least, an opaque block on a transparent margin - 44 % of the pixels are transparent,
+ * the profile asks for 5 % - that the backend fits into its 400 x 400 canvas.
+ */
+export function emblemImage(size = 512, margin = 64): UploadFile {
+  return solidPng('e2e-emblem.png', size, size, margin);
+}
+
 /** An opaque block inset by `margin` pixels on a transparent background, as a PNG upload. */
 function solidPng(name: string, width: number, height: number, margin: number): UploadFile {
   const row = 1 + width * 4;

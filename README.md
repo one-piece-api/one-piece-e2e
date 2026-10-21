@@ -14,6 +14,7 @@ attraverso l'intero stack — Keycloak, oauth2-proxy, `user-service`,
 | `devil-fruit-subcategories` | tipo con sottocategorie, frutto che ne sceglie una, API pubblica, versione del tipo rifiutata se toglie una sottocategoria in uso |
 | `story-structure-loop` | catena Saga → Arco → Volume → Capitolo → Episodio via API del content-service (sessioni reali), publish in ordine, intervalli/date solo da contenuti online (solo JP), filtri e blocchi `RELATED_NOT_ONLINE` / `ONLINE_ITEMS_LINKED` |
 | `bounty-loop` | taglia con poster che ne sostituisce un'altra (UI: catena, validità, filtri, ordine per importo, taglia ritirata), API pubblica; via API: un solo successore, nessun ciclo, `previous` non online |
+| `affiliation-loop` | affiliazione con emblema (UI: bozza, revisione, pubblicazione), API pubblica in due lingue con emblema raggiungibile, lista per nome, romaji duplicato rifiutato (422), capitolo di prima apparizione non ritirabile finché è online (409 `ONLINE_ITEMS_LINKED`), affiliazione ritirata |
 
 Gli spec dei contenuti usano gli account QA dei contenuti (`chopper`, `vivi`, `law`,
 da `onepiece-infrastructure/scripts/seed-content-qa-users.sh`) e crea a ogni
