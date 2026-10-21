@@ -3,8 +3,8 @@ import { APIResponse, expect, Page } from '@playwright/test';
 /** The story entities, as the content API names them (`/api/content/<entity>`). */
 export type StoryEntity = 'sagas' | 'arcs' | 'volumes' | 'chapters' | 'episodes';
 
-/** Every entity the helpers below move through the workflow: the story ones, the bounties, the affiliations and the species. */
-export type ContentEntity = StoryEntity | 'bounties' | 'affiliations' | 'species';
+/** Every entity the helpers below move through the workflow: the story ones, the bounties, the affiliations, the species and the characters. */
+export type ContentEntity = StoryEntity | 'bounties' | 'affiliations' | 'species' | 'characters';
 
 /** Who moves a draft along its way to "online" - one identity per role, as in the UI specs. */
 export interface Crew {

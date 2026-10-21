@@ -123,3 +123,32 @@ export interface PublicSpecies extends PublicSpeciesSummary {
 export function speciesPath(language: string, idOrSlug = ''): string {
   return `/v1/${language}/species${idOrSlug ? `/${idOrSlug}` : ''}`;
 }
+
+export interface PublicCharacterSummary {
+  id: string;
+  slug: string;
+  romaji: string;
+  name: string;
+  status: string;
+  /** Relative to the API root, e.g. `v1/images/<id>.png`; null without a portrait. */
+  image: string | null;
+}
+
+export interface PublicCharacter extends PublicCharacterSummary {
+  language: string;
+  japaneseName: string | null;
+  description: string;
+  gender: string;
+  /** ISO 8601 day and month, e.g. `--05-05`. */
+  birthday: string | null;
+  /** In the language of the reader, in the version's order. */
+  epithets: string[];
+  aliases: string[];
+  species: { id: string; slug: string; name: string }[];
+  firstAppearance: { chapter: { number: number } | null; episode: { number: number } | null };
+}
+
+/** The public address of the characters, a listing or one slug / id. */
+export function characterPath(language: string, idOrSlug = ''): string {
+  return `/v1/${language}/characters${idOrSlug ? `/${idOrSlug}` : ''}`;
+}

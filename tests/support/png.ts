@@ -75,3 +75,11 @@ function chunk(type: string, data: Buffer): Buffer {
   crc.writeUInt32BE(crc32(typed));
   return Buffer.concat([length, typed, crc]);
 }
+
+/**
+ * A PNG the character image profile accepts (character plan D7): fully opaque, 400 x 500 at
+ * least and close to 4:5, so the backend fits it into its 320 x 400 canvas.
+ */
+export function characterImage(width = 400, height = 500): UploadFile {
+  return solidPng('e2e-character.png', width, height, 0);
+}
