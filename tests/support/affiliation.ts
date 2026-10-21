@@ -4,6 +4,8 @@ import { UploadFile } from './png';
 /** What an affiliation draft is written with, through the editor. */
 export interface AffiliationDraft {
   romaji: string;
+  /** The kind of group, the value of the editor's select. */
+  kind: 'PIRATE_CREW' | 'NAVY' | 'WORLD_GOVERNMENT' | 'REVOLUTIONARY_ARMY' | 'OTHER';
   /** The English name; the other languages get their own code appended. */
   name: string;
   /** The number of the online chapter that is its first appearance. */
@@ -12,13 +14,14 @@ export interface AffiliationDraft {
 }
 
 /**
- * Writes a complete affiliation draft in the editor - romaji, an optional emblem, the first
+ * Writes a complete affiliation draft in the editor - romaji, its kind, an optional emblem, the first
  * appearance picked from the chapter search, and a name and description in every language -
  * and saves it. Leaves the page on the new content's card.
  */
 export async function createAffiliation(page: Page, draft: AffiliationDraft): Promise<void> {
   await page.goto('/content/affiliations/new');
   await page.getByLabel('Romaji').fill(draft.romaji);
+  await page.locator('#draft-kind').selectOption(draft.kind);
   if (draft.image) {
     await page.locator('#draft-image').setInputFiles(draft.image);
     await expect(page.getByTestId('image-preview')).toBeVisible();
@@ -41,10 +44,11 @@ export async function createAffiliation(page: Page, draft: AffiliationDraft): Pr
 /** The body the content API saves an affiliation with; `chapter` is a chapter's content id. */
 export function affiliationBody(
   languages: string[],
-  draft: { romaji: string; name: string; chapter: string },
+  draft: { romaji: string; kind: string; name: string; chapter: string },
 ): Record<string, unknown> {
   return {
     romaji: draft.romaji,
+    kind: draft.kind,
     firstAppearance: { chapter: draft.chapter },
     translations: Object.fromEntries(
       languages.map((code) => [

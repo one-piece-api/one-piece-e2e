@@ -13,7 +13,7 @@ import {
 import { languageCodes, onlineChapter, reasonOf, retire } from './support/story';
 
 // The affiliation through the whole loop (affiliation plan, step A4). The editors' way in the
-// interface - a draft with its emblem and first appearance, review, publication - then the
+// interface - a draft with its kind, emblem and first appearance, review, publication - then the
 // public API in both languages with the emblem reachable, the natural key (a second romaji
 // like the first is refused) and the first appearance (its chapter cannot be retired while the
 // affiliation is online). Every content is retired at the end, newest first.
@@ -34,7 +34,13 @@ test('an affiliation with its emblem goes online, reads in both languages and ke
   const chapter = await onlineChapter(crew);
 
   // The draft, with its emblem and first appearance, through the whole editorial route.
-  await createAffiliation(editor, { romaji, name, firstAppearance: chapter, image: emblemImage() });
+  await createAffiliation(editor, {
+    romaji,
+    kind: 'PIRATE_CREW',
+    name,
+    firstAppearance: chapter,
+    image: emblemImage(),
+  });
   const card = editor.url();
   const id = card.split('/').pop()!;
   await expect(editor.getByTestId('card-name')).toContainText(name);
@@ -59,8 +65,8 @@ test('an affiliation with its emblem goes online, reads in both languages and ke
   const italian: PublicAffiliation = await (
     await getPublic(request, affiliationPath('it', id))
   ).json();
-  expect(english).toMatchObject({ id, romaji, name: `${name} (English)` });
-  expect(italian).toMatchObject({ id, romaji, name: `${name} (Italiano)` });
+  expect(english).toMatchObject({ id, romaji, kind: 'PIRATE_CREW', name: `${name} (English)` });
+  expect(italian).toMatchObject({ id, romaji, kind: 'PIRATE_CREW', name: `${name} (Italiano)` });
   expect(english.description).toBe(`${name} described in English.`);
   expect(english.firstAppearance.chapter?.number).toBe(chapter);
   expect(english.slug).toBe(italian.slug);
@@ -76,10 +82,23 @@ test('an affiliation with its emblem goes online, reads in both languages and ke
   ).json();
   expect(page.content.map((listed) => listed.id)).toEqual([id]);
   expect(page.content[0].image).toBe(english.image);
+  expect(page.content[0].kind).toBe('PIRATE_CREW');
+
+  // The kind filter: this affiliation is a pirate crew, not a Navy.
+  const query = `q=${encodeURIComponent(name)}`;
+  const pirates: { content: PublicAffiliationSummary[] } = await (
+    await getPublic(request, `${affiliationPath('en')}?kind=PIRATE_CREW&${query}`)
+  ).json();
+  expect(pirates.content.map((listed) => listed.id)).toEqual([id]);
+  const navy: { content: PublicAffiliationSummary[] } = await (
+    await getPublic(request, `${affiliationPath('en')}?kind=NAVY&${query}`)
+  ).json();
+  expect(navy.content).toEqual([]);
 
   // The romaji is the natural key: a second affiliation with it is refused on save.
   const body = affiliationBody(languages, {
     romaji,
+    kind: 'PIRATE_CREW',
     name: `${name} bis`,
     chapter: await chapterIdOf(editor, chapter),
   });

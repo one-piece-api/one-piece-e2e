@@ -91,6 +91,8 @@ export interface PublicAffiliationSummary {
   slug: string;
   romaji: string;
   name: string;
+  /** Null for a version written before kinds existed. */
+  kind: string | null;
   /** Relative to the API root, e.g. `v1/images/<id>.png`; null without an emblem. */
   image: string | null;
 }
