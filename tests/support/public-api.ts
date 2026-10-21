@@ -103,3 +103,23 @@ export interface PublicAffiliation extends PublicAffiliationSummary {
 export function affiliationPath(language: string, idOrSlug = ''): string {
   return `/v1/${language}/affiliations${idOrSlug ? `/${idOrSlug}` : ''}`;
 }
+
+export interface PublicSpeciesSummary {
+  id: string;
+  slug: string;
+  romaji: string;
+  name: string;
+  /** Relative to the API root, e.g. `v1/images/<id>.png`; null without a picture. */
+  image: string | null;
+}
+
+export interface PublicSpecies extends PublicSpeciesSummary {
+  language: string;
+  description: string;
+  firstAppearance: { chapter: { number: number } | null; episode: { number: number } | null };
+}
+
+/** The public address of the species (singular and plural alike), a listing or one slug / id. */
+export function speciesPath(language: string, idOrSlug = ''): string {
+  return `/v1/${language}/species${idOrSlug ? `/${idOrSlug}` : ''}`;
+}

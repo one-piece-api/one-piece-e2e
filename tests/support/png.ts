@@ -36,6 +36,14 @@ export function emblemImage(size = 512, margin = 64): UploadFile {
   return solidPng('e2e-emblem.png', size, size, margin);
 }
 
+/**
+ * A PNG the species image profile accepts (species plan D5): fully opaque, 400 x 500 at least
+ * and close to 4:5, so the backend fits it into its 320 x 400 canvas.
+ */
+export function speciesImage(width = 400, height = 500): UploadFile {
+  return solidPng('e2e-species.png', width, height, 0);
+}
+
 /** An opaque block inset by `margin` pixels on a transparent background, as a PNG upload. */
 function solidPng(name: string, width: number, height: number, margin: number): UploadFile {
   const row = 1 + width * 4;
