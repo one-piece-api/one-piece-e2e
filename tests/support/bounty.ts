@@ -13,6 +13,8 @@ export interface BountyDraft {
   firstAppearance: number;
   /** The id of the content of the bounty it replaces. */
   previous?: string;
+  /** The id of the content of the character the poster is about. */
+  holder?: string;
 }
 
 /** An amount as the English interface writes its digits: "1,500,000,000". */
@@ -32,12 +34,12 @@ export function contentIdOf(page: Page): string {
 
 /**
  * Writes a complete bounty draft in the editor - poster name, amount, condition, an optional
- * poster, the previous bounty picked from the search, the first appearance and a description
+ * poster, the previous bounty and the holder picked from the search, the first appearance and a description
  * in every language - and saves it. Leaves the page on the new content's card.
  */
 export async function createBounty(
   page: Page,
-  draft: BountyDraft & { previousLabel?: string; image?: UploadFile },
+  draft: BountyDraft & { previousLabel?: string; holderLabel?: string; image?: UploadFile },
 ): Promise<void> {
   await page.goto('/content/bounties/new');
   await page.locator('#draft-posterName').fill(draft.posterName);
@@ -52,6 +54,10 @@ export async function createBounty(
   if (draft.previousLabel) {
     await page.locator('#draft-previous').fill(draft.posterName);
     await page.getByRole('option', { name: draft.previousLabel }).click();
+  }
+  if (draft.holderLabel) {
+    await page.locator('#draft-holder').fill(draft.holderLabel);
+    await page.getByRole('option', { name: draft.holderLabel }).click();
   }
   await page.locator('#draft-firstAppearance').fill(String(draft.firstAppearance));
   await page.getByRole('option', { name: `Ch. ${draft.firstAppearance} —` }).click();
@@ -89,6 +95,7 @@ export function bountyBody(
     condition: draft.condition ?? 'DEAD_OR_ALIVE',
     inactive: draft.inactive ?? false,
     previous: draft.previous,
+    holder: draft.holder,
     firstAppearance: { chapter: draft.chapter },
     translations: Object.fromEntries(
       languages.map((code) => [code, { description: `${draft.posterName} wanted (${code}).` }]),

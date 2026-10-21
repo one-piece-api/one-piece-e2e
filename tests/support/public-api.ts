@@ -71,6 +71,8 @@ export interface PublicBountyLink {
   validity: 'ACTIVE' | 'SUPERSEDED' | 'INACTIVE';
   /** Relative to the API root, e.g. `v1/images/<id>.png`; null without a poster. */
   image: string | null;
+  /** The character the poster is about; null when none. */
+  holder: { id: string; slug: string; name: string } | null;
 }
 
 export interface PublicBounty extends PublicBountyLink {
@@ -145,6 +147,8 @@ export interface PublicCharacter extends PublicCharacterSummary {
   epithets: string[];
   aliases: string[];
   species: { id: string; slug: string; name: string }[];
+  /** Its bounties online, highest amount first. */
+  bounties: { id: string; slug: string; amount: number; validity: PublicBountyLink['validity'] }[];
   firstAppearance: { chapter: { number: number } | null; episode: { number: number } | null };
 }
 
