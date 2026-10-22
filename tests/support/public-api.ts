@@ -149,6 +149,13 @@ export interface PublicCharacter extends PublicCharacterSummary {
   epithets: string[];
   aliases: string[];
   species: { id: string; slug: string; name: string }[];
+  /** Its memberships, in the editor's order; the role in the language of the reader. */
+  affiliations: {
+    affiliation: { id: string; slug: string; name: string; kind: string | null };
+    role: string | null;
+    marineRank: string | null;
+    former: boolean;
+  }[];
   /** Its bounties online, highest amount first. */
   bounties: { id: string; slug: string; amount: number; validity: PublicBountyLink['validity'] }[];
   firstAppearance: { chapter: { number: number } | null; episode: { number: number } | null };

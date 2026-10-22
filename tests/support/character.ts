@@ -98,7 +98,15 @@ async function addSpecies(page: Page, names: string[]): Promise<void> {
   }
 }
 
-/** The body the content API saves a character with; `chapter` and `species` are content ids. */
+/** One membership as the content API saves it; `affiliation` is a content id. */
+export interface MembershipBody {
+  affiliation: string;
+  role?: Record<string, string>;
+  marineRank?: string;
+  former?: boolean;
+}
+
+/** The body the content API saves a character with; `chapter`, `species` and affiliations are content ids. */
 export function characterBody(
   languages: string[],
   draft: {
@@ -108,6 +116,7 @@ export function characterBody(
     epithets?: Record<string, string>[];
     aliases?: string[];
     species?: string[];
+    affiliations?: MembershipBody[];
   },
 ): Record<string, unknown> {
   return {
@@ -118,6 +127,7 @@ export function characterBody(
     epithets: (draft.epithets ?? []).map((text) => ({ text })),
     aliases: draft.aliases ?? [],
     species: draft.species ?? [],
+    affiliations: draft.affiliations ?? [],
     translations: Object.fromEntries(
       languages.map((code) => [
         code,
