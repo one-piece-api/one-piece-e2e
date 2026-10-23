@@ -112,6 +112,12 @@ export interface FruitUseBody {
   former?: boolean;
 }
 
+/** One relative of a character as the content API saves it; `relative` is a content id. */
+export interface RelativeBody {
+  relative: string;
+  kind: string;
+}
+
 /** The body the content API saves a character with; `chapter`, `species` and affiliations are content ids. */
 export function characterBody(
   languages: string[],
@@ -124,18 +130,21 @@ export function characterBody(
     species?: string[];
     affiliations?: MembershipBody[];
     devilFruits?: FruitUseBody[];
+    relatives?: RelativeBody[];
+    gender?: 'MALE' | 'FEMALE' | 'UNKNOWN';
   },
 ): Record<string, unknown> {
   return {
     romaji: draft.romaji,
     status: 'ALIVE',
-    gender: 'MALE',
+    gender: draft.gender ?? 'MALE',
     firstAppearance: { chapter: draft.chapter },
     epithets: (draft.epithets ?? []).map((text) => ({ text })),
     aliases: draft.aliases ?? [],
     species: draft.species ?? [],
     affiliations: draft.affiliations ?? [],
     devilFruits: draft.devilFruits ?? [],
+    relatives: draft.relatives ?? [],
     translations: Object.fromEntries(
       languages.map((code) => [
         code,

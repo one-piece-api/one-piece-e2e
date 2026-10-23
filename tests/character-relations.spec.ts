@@ -4,7 +4,7 @@ import { blockedActions } from './support/content';
 import { bountyBody, chapterIdOf, createBounty, saveBounty } from './support/bounty';
 import { affiliationBody } from './support/affiliation';
 import { devilFruitBody, fruitTypeBody } from './support/devil-fruit';
-import { characterBody, FruitUseBody, inLanguage } from './support/character';
+import { characterBody, FruitUseBody, inLanguage, RelativeBody } from './support/character';
 import {
   bountyPath,
   characterPath,
@@ -533,4 +533,113 @@ test('a Devil Fruit has one current user, unless it is shared, in the editor and
     const response = await retire(crew, entity, id, version);
     expect(response.status(), await response.text()).toBe(200);
   }
+});
+
+test('a relative is stored once and read from both sides, in the editor and the public API', async ({
+  browser,
+  request,
+}) => {
+  test.setTimeout(300_000);
+  const stamp = Date.now();
+  const crew = await crewOf(browser);
+  const { editor, publisher } = crew;
+  const chapterId = await chapterIdOf(editor, await onlineChapter(crew));
+  const languages = await languageCodes(editor);
+  const character = (label: string, relatives: RelativeBody[] = [], gender?: 'FEMALE') =>
+    characterBody(languages, {
+      romaji: `E2E ${label} ${stamp}`,
+      name: `E2E ${label} ${stamp}`,
+      chapter: chapterId,
+      relatives,
+      gender,
+    });
+
+  // Garp is online; Luffy names him his grandfather and goes online too.
+  const garpId = await putOnline(crew, 'characters', character('Garp'));
+  const luffyId = await putOnline(
+    crew,
+    'characters',
+    character('Luffy', [{ relative: garpId, kind: 'GRANDPARENT' }]),
+  );
+
+  // The public API: each side shows the tie, the other side through the inverse kind.
+  const luffy: PublicCharacter = await (
+    await getPublic(request, characterPath('en', luffyId))
+  ).json();
+  expect(luffy.relatives.map(({ character: other, kind }) => [other.id, kind])).toEqual([
+    [garpId, 'GRANDPARENT'],
+  ]);
+  const garp: PublicCharacter = await (
+    await getPublic(request, characterPath('en', garpId))
+  ).json();
+  expect(garp.relatives.map(({ character: other, kind }) => [other.id, kind])).toEqual([
+    [luffyId, 'GRANDCHILD'],
+  ]);
+
+  // The editor: Luffy's card words the kind after Garp's gender; Garp's card lists Luffy,
+  // who stored the tie, through the inverse kind.
+  await editor.goto(`/content/characters/${luffyId}`);
+  await expect(editor.getByTestId('card-relatives')).toContainText(
+    `${inLanguage(`E2E Garp ${stamp}`, 'en')} · Grandfather`,
+  );
+  await editor.goto(`/content/characters/${garpId}`);
+  await expect(editor.getByTestId('relative-item')).toContainText(
+    inLanguage(`E2E Luffy ${stamp}`, 'en'),
+  );
+  await expect(editor.getByTestId('relative-item')).toContainText('Grandson');
+
+  // A pair is linked once: Garp cannot name Luffy back, nor himself.
+  const reopened = await editor.request.post(`/api/content/characters/${garpId}/versions`, {
+    data: { basedOn: 1 },
+  });
+  expect(reopened.status(), await reopened.text()).toBe(201);
+  // In the editor, the refusal says why in words of its own, not "can no longer be chosen".
+  await editor.goto(`/content/characters/${garpId}/edit`);
+  await expect(editor.locator('#draft-romaji')).toHaveValue(`E2E Garp ${stamp}`);
+  await editor.getByTestId('draft-relatives').getByTestId('part-add').click();
+  await editor.locator('#draft-relatives-0-relative').fill(`E2E Luffy ${stamp}`);
+  // Wait for the search to narrow to the one character before picking it.
+  const luffyOption = editor.getByRole('option', { name: inLanguage(`E2E Luffy ${stamp}`, 'en') });
+  await expect(
+    editor.locator('#draft-relatives-0-relative-listbox').getByRole('option'),
+  ).toHaveCount(1);
+  await luffyOption.click();
+  // The pick is on the draft once the box shows the name; a choice made before would write over it.
+  await expect(editor.locator('#draft-relatives-0-relative')).toHaveValue(
+    inLanguage(`E2E Luffy ${stamp}`, 'en'),
+  );
+  await editor.locator('#draft-relatives-0-kind').selectOption('GRANDCHILD');
+  await editor.getByRole('button', { name: 'Save draft' }).click();
+  await expect(editor.getByTestId('field-error')).toContainText(
+    'already names this character as a relative',
+  );
+  const draftPath = `/api/content/characters/${garpId}/versions/2`;
+  const back = await editor.request.put(draftPath, {
+    data: character('Garp', [{ relative: luffyId, kind: 'GRANDCHILD' }]),
+  });
+  expect(back.status()).toBe(422);
+  expect(JSON.stringify(await back.json())).toContain('relatives[0].relative');
+  const itself = await editor.request.put(draftPath, {
+    data: character('Garp', [{ relative: garpId, kind: 'SIBLING' }]),
+  });
+  expect(itself.status()).toBe(422);
+  expect(JSON.stringify(await itself.json())).toContain('relatives[0].relative');
+  expect((await editor.request.delete(draftPath)).status()).toBe(204);
+
+  // Garp cannot be retired while Luffy names him: the card says so upfront, and the refusal
+  // names Luffy.
+  await expect(await blockedActions(publisher, `/content/characters/${garpId}`)).toContainText(
+    'Online characters are still linked',
+  );
+  const refused = await retire(crew, 'characters', garpId);
+  expect(refused.status()).toBe(409);
+  expect(await reasonOf(refused)).toBe('ONLINE_ITEMS_LINKED');
+  expect(JSON.stringify(await refused.json())).toContain(`E2E Luffy ${stamp}`);
+
+  // Once Luffy is retired Garp goes, and the tie leaves the public API with them.
+  for (const id of [luffyId, garpId]) {
+    const response = await retire(crew, 'characters', id);
+    expect(response.status(), await response.text()).toBe(200);
+  }
+  expect((await getPublic(request, characterPath('en', garpId))).status()).toBe(404);
 });

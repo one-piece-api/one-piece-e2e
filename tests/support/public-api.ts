@@ -164,6 +164,11 @@ export interface PublicCharacter extends PublicCharacterSummary {
   }[];
   /** Its Devil Fruits, in the editor's order. */
   devilFruits: { devilFruit: { id: string; slug: string; name: string }; former: boolean }[];
+  /** Its relatives, whichever of the two characters stores the tie; `kind` is read from this side. */
+  relatives: {
+    character: { id: string; slug: string; name: string; gender: string };
+    kind: string;
+  }[];
   /** Its bounties online, highest amount first. */
   bounties: { id: string; slug: string; amount: number; validity: PublicBountyLink['validity'] }[];
   firstAppearance: { chapter: { number: number } | null; episode: { number: number } | null };
