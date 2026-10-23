@@ -36,6 +36,12 @@ export interface PublicDevilFruit {
   subcategory: PublicSubcategory | null;
 }
 
+/** A fruit with whether several characters may have it, and who has eaten it: current users first. */
+export interface PublicDevilFruitDetail extends PublicDevilFruit {
+  multipleUsers: boolean;
+  users: { character: { id: string; slug: string; name: string }; former: boolean }[];
+}
+
 export interface PublicFruitTypeDetail extends PublicFruitType {
   subcategories: PublicSubcategory[];
   devilFruits: Omit<PublicDevilFruit, 'type'>[];
@@ -156,6 +162,8 @@ export interface PublicCharacter extends PublicCharacterSummary {
     marineRank: string | null;
     former: boolean;
   }[];
+  /** Its Devil Fruits, in the editor's order. */
+  devilFruits: { devilFruit: { id: string; slug: string; name: string }; former: boolean }[];
   /** Its bounties online, highest amount first. */
   bounties: { id: string; slug: string; amount: number; validity: PublicBountyLink['validity'] }[];
   firstAppearance: { chapter: { number: number } | null; episode: { number: number } | null };

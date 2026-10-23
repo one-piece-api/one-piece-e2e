@@ -3,14 +3,17 @@ import { signIn } from './support/crew';
 import { blockedActions } from './support/content';
 import { bountyBody, chapterIdOf, createBounty, saveBounty } from './support/bounty';
 import { affiliationBody } from './support/affiliation';
-import { characterBody, inLanguage } from './support/character';
+import { devilFruitBody, fruitTypeBody } from './support/devil-fruit';
+import { characterBody, FruitUseBody, inLanguage } from './support/character';
 import {
   bountyPath,
   characterPath,
+  devilFruitPath,
   getPublic,
   PublicBounty,
   PublicCharacter,
   PublicCharacterSummary,
+  PublicDevilFruitDetail,
 } from './support/public-api';
 import {
   approve,
@@ -386,6 +389,148 @@ test('the rank rules refuse a rank outside the Navy and an affiliation leaving t
     ['affiliations', crewId],
   ] as const) {
     const response = await retire(crew, entity, id);
+    expect(response.status(), await response.text()).toBe(200);
+  }
+});
+
+test('a Devil Fruit has one current user, unless it is shared, in the editor and the public API', async ({
+  browser,
+  request,
+}) => {
+  test.setTimeout(360_000);
+  const stamp = Date.now();
+  const crew = await crewOf(browser);
+  const { editor, publisher } = crew;
+  const chapterId = await chapterIdOf(editor, await onlineChapter(crew));
+  const languages = await languageCodes(editor);
+  const typeId = await putOnline(
+    crew,
+    'devil-fruit-types',
+    fruitTypeBody(languages, {
+      romaji: `E2E Fruit Type ${stamp}`,
+      name: `E2E Fruit Type ${stamp}`,
+      chapter: chapterId,
+    }),
+  );
+  const fruit = (label: string, multipleUsers = false) =>
+    putOnline(
+      crew,
+      'devil-fruits',
+      devilFruitBody(languages, {
+        romaji: `E2E ${label} Fruit ${stamp}`,
+        name: `E2E ${label} Fruit ${stamp}`,
+        type: typeId,
+        chapter: chapterId,
+        multipleUsers,
+      }),
+    );
+  const meraId = await fruit('Mera');
+  const smileId = await fruit('Smile', true);
+  const character = (label: string, devilFruits: FruitUseBody[]) =>
+    characterBody(languages, {
+      romaji: `E2E ${label} ${stamp}`,
+      name: `E2E ${label} ${stamp}`,
+      chapter: chapterId,
+      devilFruits,
+    });
+
+  // Ace has the fruit now: he goes online, and the second current user is refused.
+  const aceId = await putOnline(crew, 'characters', character('Ace', [{ devilFruit: meraId }]));
+  const saboId = await createDraft(
+    editor,
+    'characters',
+    character('Sabo', [{ devilFruit: meraId }]),
+  );
+  await approve(crew, 'characters', saboId);
+  const refused = await publish(crew, 'characters', saboId);
+  expect(refused.status()).toBe(409);
+  expect(await reasonOf(refused)).toBe('DEVIL_FRUIT_IN_USE');
+  expect(JSON.stringify(await refused.json())).toContain(`E2E Mera Fruit ${stamp}`);
+  // The card says so before the publisher tries.
+  await expect(await blockedActions(publisher, `/content/characters/${saboId}`)).toContainText(
+    'already has a current user',
+  );
+
+  // Ace's new version marks him a former user, and then Sabo goes online.
+  const reopened = await editor.request.post(`/api/content/characters/${aceId}/versions`, {
+    data: { basedOn: 1 },
+  });
+  expect(reopened.status(), await reopened.text()).toBe(201);
+  const updated = await editor.request.put(`/api/content/characters/${aceId}/versions/2`, {
+    data: character('Ace', [{ devilFruit: meraId, former: true }]),
+  });
+  expect(updated.status(), await updated.text()).toBeLessThan(300);
+  await approve(crew, 'characters', aceId, 2);
+  expect((await publish(crew, 'characters', aceId, 2)).status()).toBe(200);
+  expect((await publish(crew, 'characters', saboId)).status()).toBe(200);
+
+  // The public API: the fruit lists its users, the current one first, and the character its fruit.
+  const mera: PublicDevilFruitDetail = await (
+    await getPublic(request, devilFruitPath('en', meraId))
+  ).json();
+  expect(mera.multipleUsers).toBe(false);
+  expect(mera.users.map(({ character: user, former }) => [user.id, former])).toEqual([
+    [saboId, false],
+    [aceId, true],
+  ]);
+  const sabo: PublicCharacter = await (
+    await getPublic(request, characterPath('en', saboId))
+  ).json();
+  expect(sabo.devilFruits.map(({ devilFruit, former }) => [devilFruit.id, former])).toEqual([
+    [meraId, false],
+  ]);
+  const users = await (
+    await getPublic(request, `${characterPath('en')}?devilFruit=${meraId}`)
+  ).json();
+  // Ace lost the power of the fruit: only Sabo has it now.
+  expect((users.content as PublicCharacterSummary[]).map(({ id }) => id)).toEqual([saboId]);
+
+  // The editor: the fruit's card lists its current user only, and leads to the characters
+  // that have it.
+  await editor.goto(`/content/devil-fruits/${meraId}`);
+  await expect(editor.getByTestId('related-count')).toContainText('1');
+  await expect(editor.getByTestId('related-name')).toContainText(`E2E Sabo ${stamp}`);
+  await editor.getByTestId('related-all').click();
+  await expect(editor).toHaveURL(new RegExp(`/content/characters\\?devilFruit=${meraId}`));
+
+  // The fruit cannot be retired while its users are online.
+  const stuck = await retire(crew, 'devil-fruits', meraId);
+  expect(stuck.status()).toBe(409);
+  expect(await reasonOf(stuck)).toBe('ONLINE_ITEMS_LINKED');
+
+  // A shared fruit takes two current users.
+  const robinId = await putOnline(
+    crew,
+    'characters',
+    character('Caesar', [{ devilFruit: smileId }]),
+  );
+  const wanzeId = await putOnline(
+    crew,
+    'characters',
+    character('Wanze', [{ devilFruit: smileId }]),
+  );
+  const smile: PublicDevilFruitDetail = await (
+    await getPublic(request, devilFruitPath('en', smileId))
+  ).json();
+  expect(smile.multipleUsers).toBe(true);
+  expect(smile.users.map(({ character: user, former }) => [user.id, former]).sort()).toEqual(
+    [
+      [robinId, false],
+      [wanzeId, false],
+    ].sort(),
+  );
+
+  // Ace is on his second version.
+  for (const [entity, id, version] of [
+    ['characters', aceId, 2],
+    ['characters', saboId, 1],
+    ['characters', robinId, 1],
+    ['characters', wanzeId, 1],
+    ['devil-fruits', meraId, 1],
+    ['devil-fruits', smileId, 1],
+    ['devil-fruit-types', typeId, 1],
+  ] as const) {
+    const response = await retire(crew, entity, id, version);
     expect(response.status(), await response.text()).toBe(200);
   }
 });

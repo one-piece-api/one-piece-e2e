@@ -106,6 +106,12 @@ export interface MembershipBody {
   former?: boolean;
 }
 
+/** One Devil Fruit of a character as the content API saves it; `devilFruit` is a content id. */
+export interface FruitUseBody {
+  devilFruit: string;
+  former?: boolean;
+}
+
 /** The body the content API saves a character with; `chapter`, `species` and affiliations are content ids. */
 export function characterBody(
   languages: string[],
@@ -117,6 +123,7 @@ export function characterBody(
     aliases?: string[];
     species?: string[];
     affiliations?: MembershipBody[];
+    devilFruits?: FruitUseBody[];
   },
 ): Record<string, unknown> {
   return {
@@ -128,6 +135,7 @@ export function characterBody(
     aliases: draft.aliases ?? [],
     species: draft.species ?? [],
     affiliations: draft.affiliations ?? [],
+    devilFruits: draft.devilFruits ?? [],
     translations: Object.fromEntries(
       languages.map((code) => [
         code,
