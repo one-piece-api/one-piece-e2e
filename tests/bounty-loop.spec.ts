@@ -13,7 +13,7 @@ import {
   openNewVersion,
   saveBounty,
 } from './support/bounty';
-import { posterImage } from './support/png';
+import { posterImage, PUBLIC_IMAGE_PATH } from './support/images';
 import { bountyPath, getPublic, PublicBounty, PublicBountyLink } from './support/public-api';
 import {
   approve,
@@ -111,10 +111,10 @@ test('a bounty replaces another, is withdrawn, and the list, filters and public 
   const first: PublicBounty = await (await getPublic(request, bountyPath('en', firstId))).json();
   expect(first.validity).toBe('SUPERSEDED');
   expect(first.chain.map((link) => link.id)).toEqual([secondId, firstId]);
-  expect(first.image).toMatch(/^v1\/images\/.+\.png$/);
+  expect(first.image).toMatch(PUBLIC_IMAGE_PATH);
   const poster = await getPublic(request, `/${first.image}`);
   expect(poster.status()).toBe(200);
-  expect(poster.headers()['content-type']).toBe('image/png');
+  expect(poster.headers()['content-type']).toBe('image/webp');
 
   // The card of the new poster lists the whole chain, newest first, itself marked.
   await editor.goto(`/content/bounties/${secondId}`);

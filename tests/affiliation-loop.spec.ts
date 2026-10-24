@@ -3,7 +3,7 @@ import { signIn } from './support/crew';
 import { actOnRoute, blockedActions, claimReview, confirm, denDenMushi } from './support/content';
 import { chapterIdOf } from './support/bounty';
 import { affiliationBody, createAffiliation, saveAffiliation } from './support/affiliation';
-import { emblemImage } from './support/png';
+import { emblemImage, PUBLIC_IMAGE_PATH } from './support/images';
 import {
   affiliationPath,
   getPublic,
@@ -71,10 +71,10 @@ test('an affiliation with its emblem goes online, reads in both languages and ke
   expect(english.firstAppearance.chapter?.number).toBe(chapter);
   expect(english.slug).toBe(italian.slug);
   expect((await getPublic(request, affiliationPath('en', english.slug))).status()).toBe(200);
-  expect(english.image).toMatch(/^v1\/images\/.+\.png$/);
+  expect(english.image).toMatch(PUBLIC_IMAGE_PATH);
   const emblem = await getPublic(request, `/${english.image}`);
   expect(emblem.status()).toBe(200);
-  expect(emblem.headers()['content-type']).toBe('image/png');
+  expect(emblem.headers()['content-type']).toBe('image/webp');
 
   // The list: found by name, sorted by name, with the emblem.
   const page: { content: PublicAffiliationSummary[] } = await (

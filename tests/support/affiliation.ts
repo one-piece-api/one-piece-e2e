@@ -1,5 +1,5 @@
 import { APIResponse, expect, Page } from '@playwright/test';
-import { UploadFile } from './png';
+import { UploadFile } from './images';
 
 /** What an affiliation draft is written with, through the editor. */
 export interface AffiliationDraft {

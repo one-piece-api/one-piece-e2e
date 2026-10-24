@@ -1,5 +1,5 @@
 import { APIResponse, expect, Page } from '@playwright/test';
-import { UploadFile } from './png';
+import { UploadFile } from './images';
 import { Crew, ContentEntity, createDraft } from './story';
 
 export type BountyCondition = 'DEAD_OR_ALIVE' | 'ONLY_ALIVE';

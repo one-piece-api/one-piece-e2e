@@ -3,7 +3,7 @@ import { signIn } from './support/crew';
 import { actOnRoute, blockedActions, claimReview, confirm, denDenMushi } from './support/content';
 import { chapterIdOf } from './support/bounty';
 import { createSpecies, saveSpecies, speciesBody } from './support/species';
-import { speciesImage } from './support/png';
+import { speciesImage, PUBLIC_IMAGE_PATH } from './support/images';
 import { getPublic, PublicSpecies, PublicSpeciesSummary, speciesPath } from './support/public-api';
 import { languageCodes, onlineChapter, reasonOf, retire } from './support/story';
 
@@ -57,10 +57,10 @@ test('a species with its picture goes online, reads in both languages and keeps 
   expect(english.firstAppearance.chapter?.number).toBe(chapter);
   expect(english.slug).toBe(italian.slug);
   expect((await getPublic(request, speciesPath('en', english.slug))).status()).toBe(200);
-  expect(english.image).toMatch(/^v1\/images\/.+\.png$/);
+  expect(english.image).toMatch(PUBLIC_IMAGE_PATH);
   const picture = await getPublic(request, `/${english.image}`);
   expect(picture.status()).toBe(200);
-  expect(picture.headers()['content-type']).toBe('image/png');
+  expect(picture.headers()['content-type']).toBe('image/webp');
 
   // The list: found by name, with the picture.
   const page: { content: PublicSpeciesSummary[] } = await (

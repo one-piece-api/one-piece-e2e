@@ -1,5 +1,5 @@
 import { APIResponse, expect, Page } from '@playwright/test';
-import { UploadFile } from './png';
+import { UploadFile } from './images';
 
 /** What a character draft is written with, through the editor. */
 export interface CharacterDraft {

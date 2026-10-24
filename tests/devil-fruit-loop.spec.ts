@@ -12,7 +12,7 @@ import {
   englishName,
   statusRow,
 } from './support/content';
-import { fruitImage } from './support/png';
+import { fruitImage, PUBLIC_IMAGE_PATH } from './support/images';
 import {
   devilFruitPath,
   fruitTypePath,
@@ -104,8 +104,9 @@ test('a fruit is linked to a reviewed type, goes online after it, and keeps it o
   ).json();
   expect(type.devilFruits.map((listed) => listed.id)).toEqual([fruitId]);
 
+  expect(fruit.image).toMatch(PUBLIC_IMAGE_PATH);
   const image = await getPublic(request, `/${fruit.image}`);
   expect(image.status()).toBe(200);
-  expect(image.headers()['content-type']).toBe('image/png');
+  expect(image.headers()['content-type']).toBe('image/webp');
   expect(image.headers()['cache-control']).toContain('immutable');
 });

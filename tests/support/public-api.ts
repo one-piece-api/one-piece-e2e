@@ -30,7 +30,7 @@ export interface PublicDevilFruit {
   id: string;
   slug: string;
   name: string;
-  /** Relative to the API root, e.g. `v1/images/<id>.png`. */
+  /** Relative to the API root, e.g. `v1/images/<id>`. */
   image: string;
   type: PublicFruitType;
   subcategory: PublicSubcategory | null;
@@ -75,7 +75,7 @@ export interface PublicBountyLink {
   amount: number;
   condition: 'DEAD_OR_ALIVE' | 'ONLY_ALIVE';
   validity: 'ACTIVE' | 'SUPERSEDED' | 'INACTIVE';
-  /** Relative to the API root, e.g. `v1/images/<id>.png`; null without a poster. */
+  /** Relative to the API root, e.g. `v1/images/<id>`; null without a poster. */
   image: string | null;
   /** The character the poster is about; null when none. */
   holder: { id: string; slug: string; name: string } | null;
@@ -99,7 +99,7 @@ export interface PublicAffiliationSummary {
   name: string;
   /** Null for a version written before kinds existed. */
   kind: string | null;
-  /** Relative to the API root, e.g. `v1/images/<id>.png`; null without an emblem. */
+  /** Relative to the API root, e.g. `v1/images/<id>`; null without an emblem. */
   image: string | null;
 }
 
@@ -119,7 +119,7 @@ export interface PublicSpeciesSummary {
   slug: string;
   romaji: string;
   name: string;
-  /** Relative to the API root, e.g. `v1/images/<id>.png`; null without a picture. */
+  /** Relative to the API root, e.g. `v1/images/<id>`; null without a picture. */
   image: string | null;
 }
 
@@ -140,7 +140,7 @@ export interface PublicCharacterSummary {
   romaji: string;
   name: string;
   status: string;
-  /** Relative to the API root, e.g. `v1/images/<id>.png`; null without a portrait. */
+  /** Relative to the API root, e.g. `v1/images/<id>`; null without a portrait. */
   image: string | null;
 }
 

@@ -1,5 +1,5 @@
 import { expect, Locator, Page } from '@playwright/test';
-import { UploadFile } from './png';
+import { UploadFile } from './images';
 
 /**
  * Writes a complete Devil Fruit Type draft - a romaji and, in every language of the catalog, a

@@ -11,7 +11,7 @@ import {
   denDenMushi,
   englishName,
 } from './support/content';
-import { fruitImage } from './support/png';
+import { fruitImage } from './support/images';
 import {
   devilFruitPath,
   fruitTypePath,
@@ -53,7 +53,7 @@ test('a fruit names a subcategory of its type, and an online fruit keeps it onli
   await expect(denDenMushi(vivi)).toContainText('v1 is online');
 
   // A fruit picks one of them and goes online.
-  await createDevilFruit(chopper, fruitName, typeName, chapter, fruitImage(), mythical);
+  await createDevilFruit(chopper, fruitName, typeName, chapter, fruitImage('png'), mythical);
   const fruitId = chopper.url().split('/').pop()!;
   await actOnRoute(chopper, 'Submit for review');
   await expect(denDenMushi(chopper)).toContainText('Submitted for review');

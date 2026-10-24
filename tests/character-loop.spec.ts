@@ -3,7 +3,7 @@ import { signIn } from './support/crew';
 import { actOnRoute, claimReview, confirm, denDenMushi } from './support/content';
 import { chapterIdOf } from './support/bounty';
 import { characterBody, createCharacter, inLanguage, saveCharacter } from './support/character';
-import { characterImage } from './support/png';
+import { characterImage, PUBLIC_IMAGE_PATH } from './support/images';
 import { speciesBody } from './support/species';
 import {
   characterPath,
@@ -115,10 +115,10 @@ test('a character with its lists goes online, reads in both languages and keeps 
   expect(english.firstAppearance.chapter?.number).toBe(chapter);
   expect(english.slug).toBe(italian.slug);
   expect((await getPublic(request, characterPath('en', english.slug))).status()).toBe(200);
-  expect(english.image).toMatch(/^v1\/images\/.+\.png$/);
+  expect(english.image).toMatch(PUBLIC_IMAGE_PATH);
   const portrait = await getPublic(request, `/${english.image}`);
   expect(portrait.status()).toBe(200);
-  expect(portrait.headers()['content-type']).toBe('image/png');
+  expect(portrait.headers()['content-type']).toBe('image/webp');
 
   // The list: found by name with its portrait, narrowed by species and by status.
   const listed = async (filter: string): Promise<PublicCharacterSummary[]> => {
