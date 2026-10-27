@@ -34,11 +34,12 @@ export function fruitImage(format: ImageFormat = 'webp'): UploadFile {
 }
 
 /**
- * A poster the bounty image profile accepts (bounty plan D4): fully opaque, 560 x 800 at
- * least and close to 7:10, so the backend fits it into its 420 x 600 canvas.
+ * A poster the bounty image profile accepts (bounty plan D4, resized to the loaded posters):
+ * fully opaque, 350 x 520 at least and close to that ratio, so the backend keeps it in its
+ * 350 x 520 canvas.
  */
 export function posterImage(format: ImageFormat = 'webp'): UploadFile {
-  return upload('e2e-poster', format, { width: 560, height: 800, margin: 0 });
+  return upload('e2e-poster', format, { width: 350, height: 520, margin: 0 });
 }
 
 /**
