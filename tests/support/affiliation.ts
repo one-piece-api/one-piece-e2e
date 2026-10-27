@@ -14,7 +14,7 @@ export interface AffiliationDraft {
 }
 
 /**
- * Writes a complete affiliation draft in the editor - romaji, its kind, an optional emblem, the first
+ * Writes a complete affiliation draft in the editor - romaji, its kind, an optional flag, the first
  * appearance picked from the chapter search, and a name and description in every language -
  * and saves it. Leaves the page on the new content's card.
  */

@@ -42,12 +42,12 @@ export function posterImage(format: ImageFormat = 'webp'): UploadFile {
 }
 
 /**
- * An emblem the affiliation image profile accepts (affiliation plan D5): a square of 512 x
- * 512 at least, an opaque block on a transparent margin - 44 % of the pixels are transparent,
- * the profile asks for 5 % - that the backend fits into its 400 x 400 canvas.
+ * A flag the affiliation image profile accepts (affiliation plan D5, revised by the user flow
+ * revision 15): fully opaque, 512 x 384 at least and close to 4:3, so the backend fits it into
+ * its 400 x 300 canvas.
  */
-export function emblemImage(format: ImageFormat = 'webp'): UploadFile {
-  return upload('e2e-emblem', format, { width: 512, height: 512, margin: 64 });
+export function flagImage(format: ImageFormat = 'webp'): UploadFile {
+  return upload('e2e-flag', format, { width: 800, height: 600, margin: 0 });
 }
 
 /**

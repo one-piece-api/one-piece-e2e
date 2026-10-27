@@ -3,7 +3,7 @@ import { signIn } from './support/crew';
 import { actOnRoute, blockedActions, claimReview, confirm, denDenMushi } from './support/content';
 import { chapterIdOf } from './support/bounty';
 import { affiliationBody, createAffiliation, saveAffiliation } from './support/affiliation';
-import { emblemImage, PUBLIC_IMAGE_PATH } from './support/images';
+import { flagImage, PUBLIC_IMAGE_PATH } from './support/images';
 import {
   affiliationPath,
   getPublic,
@@ -13,12 +13,12 @@ import {
 import { languageCodes, onlineChapter, reasonOf, retire } from './support/story';
 
 // The affiliation through the whole loop (affiliation plan, step A4). The editors' way in the
-// interface - a draft with its kind, emblem and first appearance, review, publication - then the
-// public API in both languages with the emblem reachable, the natural key (a second romaji
+// interface - a draft with its kind, flag and first appearance, review, publication - then the
+// public API in both languages with the flag reachable, the natural key (a second romaji
 // like the first is refused) and the first appearance (its chapter cannot be retired while the
 // affiliation is online). Every content is retired at the end, newest first.
 
-test('an affiliation with its emblem goes online, reads in both languages and keeps its chapter online', async ({
+test('an affiliation with its flag goes online, reads in both languages and keeps its chapter online', async ({
   browser,
   request,
 }) => {
@@ -33,13 +33,13 @@ test('an affiliation with its emblem goes online, reads in both languages and ke
   const crew = { editor, reviewer, publisher };
   const chapter = await onlineChapter(crew);
 
-  // The draft, with its emblem and first appearance, through the whole editorial route.
+  // The draft, with its flag and first appearance, through the whole editorial route.
   await createAffiliation(editor, {
     romaji,
     kind: 'PIRATE_CREW',
     name,
     firstAppearance: chapter,
-    image: emblemImage(),
+    image: flagImage(),
   });
   const card = editor.url();
   const id = card.split('/').pop()!;
@@ -56,7 +56,7 @@ test('an affiliation with its emblem goes online, reads in both languages and ke
   await confirm(publisher);
   await expect(denDenMushi(publisher)).toContainText('v1 is online');
 
-  // The public API, in both languages: the name follows the language, the emblem is reachable.
+  // The public API, in both languages: the name follows the language, the flag is reachable.
   const languages = await languageCodes(editor);
   expect(languages.length).toBeGreaterThan(1);
   const english: PublicAffiliation = await (
@@ -72,11 +72,11 @@ test('an affiliation with its emblem goes online, reads in both languages and ke
   expect(english.slug).toBe(italian.slug);
   expect((await getPublic(request, affiliationPath('en', english.slug))).status()).toBe(200);
   expect(english.image).toMatch(PUBLIC_IMAGE_PATH);
-  const emblem = await getPublic(request, `/${english.image}`);
-  expect(emblem.status()).toBe(200);
-  expect(emblem.headers()['content-type']).toBe('image/webp');
+  const flag = await getPublic(request, `/${english.image}`);
+  expect(flag.status()).toBe(200);
+  expect(flag.headers()['content-type']).toBe('image/webp');
 
-  // The list: found by name, sorted by name, with the emblem.
+  // The list: found by name, sorted by name, with the flag.
   const page: { content: PublicAffiliationSummary[] } = await (
     await getPublic(request, `${affiliationPath('en')}?q=${encodeURIComponent(name)}`)
   ).json();

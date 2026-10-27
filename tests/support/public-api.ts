@@ -99,7 +99,7 @@ export interface PublicAffiliationSummary {
   name: string;
   /** Null for a version written before kinds existed. */
   kind: string | null;
-  /** Relative to the API root, e.g. `v1/images/<id>`; null without an emblem. */
+  /** Relative to the API root, e.g. `v1/images/<id>`; null without a flag. */
   image: string | null;
 }
 
