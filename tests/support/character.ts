@@ -1,5 +1,5 @@
-import { APIResponse, expect, Page } from '@playwright/test';
-import { UploadFile } from './images';
+import { APIResponse, expect, Page } from "@playwright/test";
+import { UploadFile } from "./images";
 
 /** What a character draft is written with, through the editor. */
 export interface CharacterDraft {
@@ -7,8 +7,8 @@ export interface CharacterDraft {
   /** The name; every language gets its own code appended. */
   name: string;
   japaneseName: string;
-  status: 'ALIVE' | 'DECEASED' | 'UNKNOWN';
-  gender: 'MALE' | 'FEMALE' | 'UNKNOWN';
+  status: "ALIVE" | "DECEASED" | "UNKNOWN";
+  gender: "MALE" | "FEMALE" | "UNKNOWN";
   birthday: { day: number; month: number };
   /** The number of the online chapter that is its first appearance. */
   firstAppearance: number;
@@ -27,51 +27,84 @@ export function inLanguage(text: string, language: string): string {
 
 /**
  * Writes a complete character draft in the editor - romaji, Japanese name, portrait, status,
- * gender, birthday, the species picked from the search, first appearance, epithets in every
- * language, aliases, and a name and description in every language - and saves it. The two
- * first species are added swapped and put right with the entry's "up" button, so the order
- * is the editor's own. Leaves the page on the new content's card.
+ * gender, birthday, first appearance, the species picked from the search, epithets in every
+ * language, aliases, and a name and description in every language - and saves it. Every entry
+ * is discovered at the first appearance: review asks for it, and its pickers keep to the axes
+ * of the first appearance, so that comes first. The two first species are added swapped and
+ * put right with the entry's "up" button, so the order is the editor's own. Leaves the page
+ * on the new content's card.
  */
 export async function createCharacter(
   page: Page,
   languages: string[],
   draft: CharacterDraft,
 ): Promise<void> {
-  await page.goto('/content/characters/new');
-  await page.getByLabel('Romaji').fill(draft.romaji);
-  await page.locator('#draft-japaneseName').fill(draft.japaneseName);
-  await page.locator('#draft-image').setInputFiles(draft.image);
-  await expect(page.getByTestId('image-preview')).toBeVisible();
-  await page.locator('#draft-status').selectOption(draft.status);
-  await page.locator('#draft-gender').selectOption(draft.gender);
-  await page.locator('#draft-birthday-month').selectOption(String(draft.birthday.month));
-  await page.locator('#draft-birthday').selectOption(String(draft.birthday.day));
-  await addSpecies(page, draft.species);
-  await page.locator('#draft-firstAppearance').fill(String(draft.firstAppearance));
-  await page.getByRole('option', { name: `Ch. ${draft.firstAppearance} —` }).click();
+  await page.goto("/content/characters/new");
+  await page.getByLabel("Romaji").fill(draft.romaji);
+  await page.locator("#draft-japaneseName").fill(draft.japaneseName);
+  await page.locator("#draft-image").setInputFiles(draft.image);
+  await expect(page.getByTestId("image-preview")).toBeVisible();
+  await page.locator("#draft-status").selectOption(draft.status);
+  await page.locator("#draft-gender").selectOption(draft.gender);
+  await page
+    .locator("#draft-birthday-month")
+    .selectOption(String(draft.birthday.month));
+  await page
+    .locator("#draft-birthday")
+    .selectOption(String(draft.birthday.day));
+  await pickChapter(page, "draft-firstAppearance", draft.firstAppearance);
+  await addSpecies(page, draft.species, draft.firstAppearance);
   for (const [index, epithet] of draft.epithets.entries()) {
-    await addPart(page, 'epithets');
+    await addPart(page, "epithets");
     for (const language of languages) {
       await page
         .locator(`#draft-epithets-${index}-text-${language}`)
         .fill(inLanguage(epithet, language));
     }
+    await pickChapter(
+      page,
+      `draft-epithets-${index}-discovered`,
+      draft.firstAppearance,
+    );
   }
   for (const [index, alias] of draft.aliases.entries()) {
-    await addPart(page, 'aliases');
+    await addPart(page, "aliases");
     await page.locator(`#draft-aliases-${index}-alias`).fill(alias);
+    await pickChapter(
+      page,
+      `draft-aliases-${index}-discovered`,
+      draft.firstAppearance,
+    );
   }
-  const tabs = page.getByRole('tab');
+  const tabs = page.getByRole("tab");
   for (let index = 0; index < (await tabs.count()); index++) {
     const tab = tabs.nth(index);
     await tab.click();
-    const language = await tab.getAttribute('title');
-    await page.locator('#draft-name').fill(`${draft.name} (${language})`);
-    await page.locator('#draft-description').fill(`${draft.name} described in ${language}.`);
+    const language = await tab.getAttribute("title");
+    await page.locator("#draft-name").fill(`${draft.name} (${language})`);
+    await page
+      .locator("#draft-description")
+      .fill(`${draft.name} described in ${language}.`);
   }
-  await page.getByRole('button', { name: 'Save draft' }).click();
+  await page.getByRole("button", { name: "Save draft" }).click();
   await expect(page.getByText(/New draft aboard/)).toBeVisible();
   await expect(page).toHaveURL(/\/characters\/[0-9a-f-]{36}$/);
+}
+
+/**
+ * Picks an online chapter by its number in the chapter search box of this id: the first
+ * appearance, or a point of a window (`draft-species-0-discovered`).
+ */
+export async function pickChapter(
+  page: Page,
+  boxId: string,
+  chapter: number,
+): Promise<void> {
+  await page.locator(`#${boxId}`).fill(String(chapter));
+  await page
+    .locator(`#${boxId}-listbox`)
+    .getByRole("option", { name: `Ch. ${chapter} —` })
+    .click();
 }
 
 /**
@@ -79,46 +112,77 @@ export async function createCharacter(
  * is not kept, so each is filled before the next is added.
  */
 async function addPart(page: Page, key: string): Promise<void> {
-  await page.getByTestId(`draft-${key}`).getByTestId('part-add').click();
+  await page.getByTestId(`draft-${key}`).getByTestId("part-add").click();
 }
 
 /**
- * Picks each species from the relation search, the first two added the other way round and
- * put in order by moving the second entry up.
+ * Picks each species from the relation search, discovered at this chapter, the first two added
+ * the other way round and put in order by moving the second entry up.
  */
-async function addSpecies(page: Page, names: string[]): Promise<void> {
-  const added = names.length > 1 ? [names[1], names[0], ...names.slice(2)] : names;
+async function addSpecies(
+  page: Page,
+  names: string[],
+  chapter: number,
+): Promise<void> {
+  const added =
+    names.length > 1 ? [names[1], names[0], ...names.slice(2)] : names;
   for (const [index, name] of added.entries()) {
-    await addPart(page, 'species');
+    await addPart(page, "species");
     await page.locator(`#draft-species-${index}-species`).fill(name);
-    await page.getByRole('option', { name }).click();
+    await page.getByRole("option", { name }).click();
+    await pickChapter(page, `draft-species-${index}-discovered`, chapter);
   }
   if (names.length > 1) {
-    await page.getByTestId('draft-species').getByTestId('part-up').nth(1).click();
+    await page
+      .getByTestId("draft-species")
+      .getByTestId("part-up")
+      .nth(1)
+      .click();
   }
+}
+
+/** A point of the reader axis as the content API saves it: content ids. */
+export interface StoryPointBody {
+  chapter?: string;
+  episode?: string;
+}
+
+/** One stay in an affiliation: its role, its rank in the Navy, and its window. */
+export interface PeriodBody {
+  role?: Record<string, string>;
+  marineRank?: string;
+  discovered: StoryPointBody;
+  ended?: StoryPointBody;
 }
 
 /** One membership as the content API saves it; `affiliation` is a content id. */
 export interface MembershipBody {
   affiliation: string;
-  role?: Record<string, string>;
-  marineRank?: string;
-  former?: boolean;
+  periods: PeriodBody[];
 }
 
-/** One Devil Fruit of a character as the content API saves it; `devilFruit` is a content id. */
+/**
+ * One Devil Fruit of a character as the content API saves it; `devilFruit` is a content id.
+ * Its window is discovered at the first appearance unless given; an end makes the user former.
+ */
 export interface FruitUseBody {
   devilFruit: string;
-  former?: boolean;
+  discovered?: StoryPointBody;
+  ended?: StoryPointBody;
 }
 
 /** One relative of a character as the content API saves it; `relative` is a content id. */
 export interface RelativeBody {
   relative: string;
   kind: string;
+  discovered?: StoryPointBody;
 }
 
-/** The body the content API saves a character with; `chapter`, `species` and affiliations are content ids. */
+/**
+ * The body the content API saves a character with; `chapter`, `species` and affiliations are
+ * content ids. Every entry of a list is discovered at the first appearance unless it says
+ * otherwise; a membership's periods are given whole.
+ */
 export function characterBody(
   languages: string[],
   draft: {
@@ -131,20 +195,27 @@ export function characterBody(
     affiliations?: MembershipBody[];
     devilFruits?: FruitUseBody[];
     relatives?: RelativeBody[];
-    gender?: 'MALE' | 'FEMALE' | 'UNKNOWN';
+    gender?: "MALE" | "FEMALE" | "UNKNOWN";
   },
 ): Record<string, unknown> {
+  const discovered = { chapter: draft.chapter };
   return {
     romaji: draft.romaji,
-    status: 'ALIVE',
-    gender: draft.gender ?? 'MALE',
+    status: "ALIVE",
+    gender: draft.gender ?? "MALE",
     firstAppearance: { chapter: draft.chapter },
-    epithets: (draft.epithets ?? []).map((text) => ({ text })),
-    aliases: draft.aliases ?? [],
-    species: draft.species ?? [],
+    epithets: (draft.epithets ?? []).map((text) => ({ text, discovered })),
+    aliases: (draft.aliases ?? []).map((alias) => ({ alias, discovered })),
+    species: (draft.species ?? []).map((species) => ({ species, discovered })),
     affiliations: draft.affiliations ?? [],
-    devilFruits: draft.devilFruits ?? [],
-    relatives: draft.relatives ?? [],
+    devilFruits: (draft.devilFruits ?? []).map((use) => ({
+      discovered,
+      ...use,
+    })),
+    relatives: (draft.relatives ?? []).map((relative) => ({
+      discovered,
+      ...relative,
+    })),
     translations: Object.fromEntries(
       languages.map((code) => [
         code,
@@ -158,6 +229,9 @@ export function characterBody(
 }
 
 /** Saves a character draft through the content API; the response is the caller's to judge. */
-export function saveCharacter(page: Page, body: Record<string, unknown>): Promise<APIResponse> {
-  return page.request.post('/api/content/characters', { data: body });
+export function saveCharacter(
+  page: Page,
+  body: Record<string, unknown>,
+): Promise<APIResponse> {
+  return page.request.post("/api/content/characters", { data: body });
 }
