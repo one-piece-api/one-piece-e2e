@@ -8,6 +8,7 @@ import {
   saveBounty,
 } from "./support/bounty";
 import { affiliationBody } from "./support/affiliation";
+import { addParagraph } from "./support/paragraphs";
 import { devilFruitBody, fruitTypeBody } from "./support/devil-fruit";
 import {
   characterBody,
@@ -321,15 +322,18 @@ test("a character belongs to a crew in two periods and to the Navy with a rank, 
   await editor
     .locator("#draft-affiliations-1-periods-0-marineRank")
     .selectOption("VICE_ADMIRAL");
+  await addParagraph(
+    editor,
+    "description",
+    (language) => `${romaji} described in ${language}.`,
+    chapter,
+  );
   const tabs = editor.getByRole("tab");
   for (let index = 0; index < (await tabs.count()); index++) {
     const tab = tabs.nth(index);
     await tab.click();
     const language = await tab.getAttribute("title");
     await editor.locator("#draft-name").fill(`${romaji} (${language})`);
-    await editor
-      .locator("#draft-description")
-      .fill(`${romaji} described in ${language}.`);
   }
   await editor.getByRole("button", { name: "Save draft" }).click();
   await expect(editor.getByText(/New draft aboard/)).toBeVisible();

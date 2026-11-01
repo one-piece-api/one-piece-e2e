@@ -1,11 +1,12 @@
 import { expect, Locator, Page } from '@playwright/test';
 import { UploadFile } from './images';
+import { addParagraph } from './paragraphs';
 
 /**
- * Writes a complete Devil Fruit Type draft - a romaji and, in every language of the catalog, a
- * name, a description, advantages and disadvantages, plus the named subcategories - and its
- * first appearance at chapter `firstAppearance`, then saves it: review only takes a complete
- * draft. Leaves the page on the new content's card.
+ * Writes a complete Devil Fruit Type draft - a romaji, a name in every language of the
+ * catalog, its first appearance at chapter `firstAppearance`, a paragraph of description,
+ * advantages and disadvantages discovered there, plus the named subcategories - then saves it:
+ * review only takes a complete draft. Leaves the page on the new content's card.
  */
 export async function createFruitType(
   page: Page,
@@ -19,7 +20,8 @@ export async function createFruitType(
   for (let added = 0; added < subcategories.length; added++) {
     await page.getByTestId('subcategory-add').click();
   }
-  await fillEveryLanguage(page, name, 'Written by the e2e suite', subcategories);
+  await fillSections(page, 'Written by the e2e suite', firstAppearance);
+  await fillEveryLanguage(page, name, subcategories);
   await page.getByRole('button', { name: 'Save draft' }).click();
   await expect(page.getByText(/New draft aboard/)).toBeVisible();
   await expect(page).toHaveURL(/\/devil-fruit-types\/[0-9a-f-]{36}$/);
@@ -49,7 +51,8 @@ export async function createDevilFruit(
     await page.locator('#draft-subcategory').selectOption(await choice.getAttribute('value'));
   }
   await pickFirstAppearance(page, firstAppearance);
-  await fillEveryLanguage(page, name, 'Written by the e2e suite');
+  await fillSections(page, 'Written by the e2e suite', firstAppearance);
+  await fillEveryLanguage(page, name);
   await page.getByRole('button', { name: 'Save draft' }).click();
   await expect(page.getByText(/New draft aboard/)).toBeVisible();
   await expect(page).toHaveURL(/\/devil-fruits\/[0-9a-f-]{36}$/);
@@ -62,24 +65,26 @@ async function pickFirstAppearance(page: Page, chapter: number): Promise<void> {
 }
 
 /**
- * Fills every translated field of the draft in every language tab of the editor, and the
- * name and description of each subcategory already added (the nth entry gets the nth name).
+ * Writes one paragraph in each section of a fruit or a type - description, advantages,
+ * disadvantages - in every language, discovered at the first appearance, chapter `chapter`.
  */
-export async function fillEveryLanguage(
-  page: Page,
-  name: string,
-  description: string,
-  subcategories: string[] = [],
-) {
+async function fillSections(page: Page, description: string, chapter: number): Promise<void> {
+  await addParagraph(page, 'description', (language) => `${description} in ${language}.`, chapter);
+  await addParagraph(page, 'advantages', (language) => `Advantages in ${language}.`, chapter);
+  await addParagraph(page, 'disadvantages', (language) => `Disadvantages in ${language}.`, chapter);
+}
+
+/**
+ * Fills the name of the draft in every language tab of the editor, and the name and
+ * description of each subcategory already added (the nth entry gets the nth name).
+ */
+export async function fillEveryLanguage(page: Page, name: string, subcategories: string[] = []) {
   const tabs = page.getByRole('tab');
   for (let index = 0; index < (await tabs.count()); index++) {
     const tab = tabs.nth(index);
     await tab.click();
     const language = await tab.getAttribute('title');
     await page.locator('#draft-name').fill(`${name} (${language})`);
-    await page.locator('#draft-description').fill(`${description} in ${language}.`);
-    await page.locator('#draft-advantages').fill(`Advantages in ${language}.`);
-    await page.locator('#draft-disadvantages').fill(`Disadvantages in ${language}.`);
     for (const [position, subcategory] of subcategories.entries()) {
       await page
         .locator(`#draft-subcategories-${position}-name`)

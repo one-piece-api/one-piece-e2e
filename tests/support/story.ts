@@ -1,4 +1,5 @@
 import { APIResponse, expect, Page } from '@playwright/test';
+import { paragraphsOf } from './paragraphs';
 
 /** The story entities, as the content API names them (`/api/content/<entity>`). */
 export type StoryEntity = 'sagas' | 'arcs' | 'volumes' | 'chapters' | 'episodes';
@@ -33,7 +34,10 @@ export async function languageCodes(page: Page): Promise<string[]> {
   return languages.map((language) => language.code);
 }
 
-/** A title and a description in every language, each marked with the language it is in. */
+/**
+ * A title and a description in every language, each marked with the language it is in: a
+ * volume, a chapter, an episode.
+ */
 export function translationsOf(
   languages: string[],
   title: string,
@@ -47,6 +51,19 @@ export function translationsOf(
       },
     ]),
   );
+}
+
+/** A title in every language, marked with the language it is in: a Saga, an Arc. */
+export function titlesOf(languages: string[], title: string): Record<string, { title: string }> {
+  return Object.fromEntries(languages.map((code) => [code, { title: `${title} (${code})` }]));
+}
+
+/**
+ * The description of a Saga or an Arc: one paragraph in every language, discovered at the
+ * chapter whose content id is `chapter` - any chapter, approved before the item goes online.
+ */
+export function storyDescriptionOf(languages: string[], title: string, chapter: string) {
+  return paragraphsOf(languages, (code) => `${title} described in ${code}.`, { chapter });
 }
 
 /** Saves a new draft through the content API and returns the id of its content. */
@@ -107,20 +124,55 @@ export async function reasonOf(response: APIResponse): Promise<string> {
   return problem.reason;
 }
 
+/** Saves version `version` of a draft again with `body`; fails unless the content API takes it. */
+export async function editDraft(
+  page: Page,
+  entity: ContentEntity,
+  id: string,
+  body: Record<string, unknown>,
+  version = 1,
+): Promise<void> {
+  const response = await page.request.put(`/api/content/${entity}/${id}/versions/${version}`, {
+    data: body,
+  });
+  expect(response.status(), await response.text()).toBe(200);
+}
+
 /**
  * A chapter online, with the saga and arc it needs, for contents to name as their first
- * appearance - required to submit a Devil Fruit or its type. Returns its number.
+ * appearance - required to submit a Devil Fruit or its type. Returns its number. Works on an
+ * empty catalog: the saga and the arc describe the story from this very chapter, which passes
+ * review only within an approved arc - so it is drafted first, without its arc, and put in
+ * its arc once that is approved; each goes online once what it points to is approved.
  */
 export async function onlineChapter(crew: Crew): Promise<number> {
   const number = freshNumber();
-  const titled = translationsOf(await languageCodes(crew.editor), `E2E Story ${number}`);
-  const saga = await putOnline(crew, 'sagas', { number, translations: titled });
-  const arc = await putOnline(crew, 'arcs', { number, saga, translations: titled });
-  await putOnline(crew, 'chapters', {
+  const languages = await languageCodes(crew.editor);
+  const title = `E2E Story ${number}`;
+  const chapterBody = {
     number,
-    arc,
     releases: [{ country: 'JP', date: '2020-05-01' }],
-    translations: titled,
-  });
+    translations: translationsOf(languages, title),
+  };
+  const chapter = await createDraft(crew.editor, 'chapters', chapterBody);
+  const story = {
+    number,
+    translations: titlesOf(languages, title),
+    description: storyDescriptionOf(languages, title, chapter),
+  };
+  const saga = await createDraft(crew.editor, 'sagas', story);
+  await approve(crew, 'sagas', saga);
+  const arc = await createDraft(crew.editor, 'arcs', { ...story, saga });
+  await approve(crew, 'arcs', arc);
+  await editDraft(crew.editor, 'chapters', chapter, { ...chapterBody, arc });
+  await approve(crew, 'chapters', chapter);
+  for (const [entity, id] of [
+    ['sagas', saga],
+    ['arcs', arc],
+    ['chapters', chapter],
+  ] as const) {
+    const response = await publish(crew, entity, id);
+    expect(response.status(), `${entity}: ${await response.text()}`).toBe(200);
+  }
   return number;
 }

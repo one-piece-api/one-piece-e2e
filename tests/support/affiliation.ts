@@ -1,5 +1,6 @@
 import { APIResponse, expect, Page } from '@playwright/test';
 import { UploadFile } from './images';
+import { addParagraph, paragraphsOf } from './paragraphs';
 
 /** What an affiliation draft is written with, through the editor. */
 export interface AffiliationDraft {
@@ -15,7 +16,7 @@ export interface AffiliationDraft {
 
 /**
  * Writes a complete affiliation draft in the editor - romaji, its kind, an optional flag, the first
- * appearance picked from the chapter search, and a name and description in every language -
+ * appearance picked from the chapter search, a name in every language and a paragraph of description in every language discovered there -
  * and saves it. Leaves the page on the new content's card.
  */
 export async function createAffiliation(page: Page, draft: AffiliationDraft): Promise<void> {
@@ -28,13 +29,18 @@ export async function createAffiliation(page: Page, draft: AffiliationDraft): Pr
   }
   await page.locator('#draft-firstAppearance').fill(String(draft.firstAppearance));
   await page.getByRole('option', { name: `Ch. ${draft.firstAppearance} —` }).click();
+  await addParagraph(
+    page,
+    'description',
+    (language) => `${draft.name} described in ${language}.`,
+    draft.firstAppearance,
+  );
   const tabs = page.getByRole('tab');
   for (let index = 0; index < (await tabs.count()); index++) {
     const tab = tabs.nth(index);
     await tab.click();
     const language = await tab.getAttribute('title');
     await page.locator('#draft-name').fill(`${draft.name} (${language})`);
-    await page.locator('#draft-description').fill(`${draft.name} described in ${language}.`);
   }
   await page.getByRole('button', { name: 'Save draft' }).click();
   await expect(page.getByText(/New draft aboard/)).toBeVisible();
@@ -50,11 +56,11 @@ export function affiliationBody(
     romaji: draft.romaji,
     kind: draft.kind,
     firstAppearance: { chapter: draft.chapter },
+    description: paragraphsOf(languages, (code) => `${draft.name} described in ${code}.`, {
+      chapter: draft.chapter,
+    }),
     translations: Object.fromEntries(
-      languages.map((code) => [
-        code,
-        { name: `${draft.name} (${code})`, description: `${draft.name} described in ${code}.` },
-      ]),
+      languages.map((code) => [code, { name: `${draft.name} (${code})` }]),
     ),
   };
 }

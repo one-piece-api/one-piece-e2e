@@ -7,9 +7,9 @@ import {
   confirm,
   createFruitType,
   denDenMushi,
-  fillEveryLanguage,
   statusRow,
 } from './support/content';
+import { rewriteParagraph } from './support/paragraphs';
 
 // The editorial workflow of content-service, end to end through the real UI: each role is a
 // different seeded user in a browser context of their own (support/crew.ts) - chopper writes
@@ -60,7 +60,7 @@ test('a fruit type goes from draft to online, gets a second version, and is reti
   await chopper.goto(card);
   await actOnRoute(chopper, 'New draft from v1');
   await expect(chopper.getByText('your draft v2 · v1 stays online')).toBeVisible();
-  await fillEveryLanguage(chopper, name, 'Rewritten by the e2e suite');
+  await rewriteParagraph(chopper, 'description', 0, (language) => `Rewritten by the e2e suite in ${language}.`);
   await chopper.getByRole('button', { name: 'Save draft' }).click();
   await expect(denDenMushi(chopper)).toContainText('Draft saved');
   await chopper.goto(card);

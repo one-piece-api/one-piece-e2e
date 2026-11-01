@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { chapterIdOf } from './support/bounty';
 import { signIn } from './support/crew';
 import { getPublic, PublicStorySpan, storyPath } from './support/public-api';
 import {
@@ -7,10 +8,13 @@ import {
   Crew,
   freshNumber,
   languageCodes,
+  onlineChapter,
   publish,
   putOnline,
   reasonOf,
   retire,
+  storyDescriptionOf,
+  titlesOf,
   translationsOf,
 } from './support/story';
 
@@ -33,17 +37,24 @@ test('the story chain goes online in order, spans follow what is online, blocks 
   };
   const languages = await languageCodes(crew.editor);
   const titled = (title: string) => translationsOf(languages, title);
+  // A Saga and an Arc describe the story from a chapter of another chain: one of this chain
+  // could not be retired before them at the end.
+  const anchor = await chapterIdOf(crew.editor, await onlineChapter(crew));
+  const story = (title: string) => ({
+    translations: titlesOf(languages, title),
+    description: storyDescriptionOf(languages, title, anchor),
+  });
 
   // Drafts, bottom-up: nothing is online yet.
   const sagaId = await createDraft(crew.editor, 'sagas', {
     number: base,
-    translations: titled(`E2E Saga ${base}`),
+    ...story(`E2E Saga ${base}`),
   });
   await approve(crew, 'sagas', sagaId);
   const arcId = await createDraft(crew.editor, 'arcs', {
     number: base,
     saga: sagaId,
-    translations: titled(`E2E Arc ${base}`),
+    ...story(`E2E Arc ${base}`),
   });
   await approve(crew, 'arcs', arcId);
 

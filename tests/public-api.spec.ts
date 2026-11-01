@@ -8,9 +8,9 @@ import {
   createFruitType,
   denDenMushi,
   englishName,
-  fillEveryLanguage,
   statusRow,
 } from './support/content';
+import { rewriteParagraph } from './support/paragraphs';
 import { fruitTypePath, getPublic, PublicFruitType } from './support/public-api';
 
 // The editorial workflow seen from the public read API (public-api plan D15): what a
@@ -60,7 +60,7 @@ test('published content appears in the public API, a new romaji redirects, retir
   await chopper.goto(card);
   await actOnRoute(chopper, 'New draft from v1');
   await chopper.getByLabel('Romaji').fill(`${name}-kai`);
-  await fillEveryLanguage(chopper, name, 'Rewritten by the e2e suite');
+  await rewriteParagraph(chopper, 'description', 0, (language) => `Rewritten by the e2e suite in ${language}.`);
   await chopper.getByRole('button', { name: 'Save draft' }).click();
   await expect(denDenMushi(chopper)).toContainText('Draft saved');
   await chopper.goto(card);

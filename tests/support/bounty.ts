@@ -1,5 +1,6 @@
 import { APIResponse, expect, Page } from '@playwright/test';
 import { UploadFile } from './images';
+import { addParagraph, paragraphsOf } from './paragraphs';
 import { Crew, ContentEntity, createDraft } from './story';
 
 export type BountyCondition = 'DEAD_OR_ALIVE' | 'ONLY_ALIVE';
@@ -34,8 +35,8 @@ export function contentIdOf(page: Page): string {
 
 /**
  * Writes a complete bounty draft in the editor - poster name, amount, condition, an optional
- * poster, the previous bounty and the holder picked from the search, the first appearance and a description
- * in every language - and saves it. Leaves the page on the new content's card.
+ * poster, the previous bounty and the holder picked from the search, the first appearance and a paragraph
+ * of description in every language discovered there - and saves it. Leaves the page on the new content's card.
  */
 export async function createBounty(
   page: Page,
@@ -61,14 +62,12 @@ export async function createBounty(
   }
   await page.locator('#draft-firstAppearance').fill(String(draft.firstAppearance));
   await page.getByRole('option', { name: `Ch. ${draft.firstAppearance} —` }).click();
-  const tabs = page.getByRole('tab');
-  for (let index = 0; index < (await tabs.count()); index++) {
-    const tab = tabs.nth(index);
-    await tab.click();
-    await page
-      .locator('#draft-description')
-      .fill(`${draft.posterName} wanted, in ${await tab.getAttribute('title')}.`);
-  }
+  await addParagraph(
+    page,
+    'description',
+    (language) => `${draft.posterName} wanted, in ${language}.`,
+    draft.firstAppearance,
+  );
   await page.getByRole('button', { name: 'Save draft' }).click();
   await expect(page.getByText(/New draft aboard/)).toBeVisible();
   await expect(page).toHaveURL(/\/bounties\/[0-9a-f-]{36}$/);
@@ -97,9 +96,9 @@ export function bountyBody(
     previous: draft.previous,
     holder: draft.holder,
     firstAppearance: { chapter: draft.chapter },
-    translations: Object.fromEntries(
-      languages.map((code) => [code, { description: `${draft.posterName} wanted (${code}).` }]),
-    ),
+    description: paragraphsOf(languages, (code) => `${draft.posterName} wanted (${code}).`, {
+      chapter: draft.chapter,
+    }),
   };
 }
 

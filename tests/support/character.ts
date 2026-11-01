@@ -1,5 +1,8 @@
 import { APIResponse, expect, Page } from "@playwright/test";
 import { UploadFile } from "./images";
+import { addParagraph, paragraphsOf, pickChapter } from "./paragraphs";
+
+export { pickChapter };
 
 /** What a character draft is written with, through the editor. */
 export interface CharacterDraft {
@@ -28,7 +31,7 @@ export function inLanguage(text: string, language: string): string {
 /**
  * Writes a complete character draft in the editor - romaji, Japanese name, portrait, status,
  * gender, birthday, first appearance, the species picked from the search, epithets in every
- * language, aliases, and a name and description in every language - and saves it. Every entry
+ * language, aliases, a name in every language and a paragraph of description - and saves it. Every entry
  * is discovered at the first appearance: review asks for it, and its pickers keep to the axes
  * of the first appearance, so that comes first. The two first species are added swapped and
  * put right with the entry's "up" button, so the order is the editor's own. Leaves the page
@@ -76,35 +79,22 @@ export async function createCharacter(
       draft.firstAppearance,
     );
   }
+  await addParagraph(
+    page,
+    "description",
+    (language) => `${draft.name} described in ${language}.`,
+    draft.firstAppearance,
+  );
   const tabs = page.getByRole("tab");
   for (let index = 0; index < (await tabs.count()); index++) {
     const tab = tabs.nth(index);
     await tab.click();
     const language = await tab.getAttribute("title");
     await page.locator("#draft-name").fill(`${draft.name} (${language})`);
-    await page
-      .locator("#draft-description")
-      .fill(`${draft.name} described in ${language}.`);
   }
   await page.getByRole("button", { name: "Save draft" }).click();
   await expect(page.getByText(/New draft aboard/)).toBeVisible();
   await expect(page).toHaveURL(/\/characters\/[0-9a-f-]{36}$/);
-}
-
-/**
- * Picks an online chapter by its number in the chapter search box of this id: the first
- * appearance, or a point of a window (`draft-species-0-discovered`).
- */
-export async function pickChapter(
-  page: Page,
-  boxId: string,
-  chapter: number,
-): Promise<void> {
-  await page.locator(`#${boxId}`).fill(String(chapter));
-  await page
-    .locator(`#${boxId}-listbox`)
-    .getByRole("option", { name: `Ch. ${chapter} —` })
-    .click();
 }
 
 /**
@@ -216,14 +206,13 @@ export function characterBody(
       discovered,
       ...relative,
     })),
+    description: paragraphsOf(
+      languages,
+      (code) => `${draft.name} described in ${code}.`,
+      discovered,
+    ),
     translations: Object.fromEntries(
-      languages.map((code) => [
-        code,
-        {
-          name: `${draft.name} (${code})`,
-          description: `${draft.name} described in ${code}.`,
-        },
-      ]),
+      languages.map((code) => [code, { name: `${draft.name} (${code})` }]),
     ),
   };
 }
