@@ -142,7 +142,10 @@ test("a fruit believed to be the Gomu Gomu reveals its real name and type at a c
   const believedName = (code: string) => `Gomu Gomu ${stamp} (${code})`;
   const nameRow = detail.getByTestId("reveal-row").nth(0);
   for (const code of languages) {
-    await editor.getByTestId(`reveal-language-${code}`).click();
+    // The title box is redrawn for the language: write only once the switch shows it.
+    const language = editor.getByTestId(`reveal-language-${code}`);
+    await language.click();
+    await expect(language).toHaveAttribute("aria-pressed", "true");
     await detail.getByTestId("reveal-title").fill(title(code));
     if (
       (await nameRow
