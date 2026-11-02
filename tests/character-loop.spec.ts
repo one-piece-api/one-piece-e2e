@@ -3,7 +3,7 @@ import { signIn } from './support/crew';
 import { actOnRoute, claimReview, confirm, denDenMushi } from './support/content';
 import { chapterIdOf } from './support/bounty';
 import { characterBody, createCharacter, inLanguage, saveCharacter } from './support/character';
-import { characterImage, PUBLIC_IMAGE_PATH } from './support/images';
+import { characterImage, OTHER_BLOCK_COLOR, PUBLIC_IMAGE_PATH } from './support/images';
 import { speciesBody } from './support/species';
 import {
   characterPath,
@@ -15,10 +15,10 @@ import {
 import { languageCodes, onlineChapter, putOnline, reasonOf, retire } from './support/story';
 
 // The character through the whole loop (character plan, step C4). The editors' way in the
-// interface - the lists of species, epithets and aliases, the birthday and the portrait,
+// interface - the lists of species, epithets and aliases, the birthday and the gallery,
 // review, publication - then the public API in both languages (epithets in the language of
 // the reader, species and aliases in the editor's order, the birthday as `--MM-DD`, the
-// portrait reachable) with the filters by species and by status, and the rules the API
+// main portrait reachable: the appearance still current, not the ended one before it) with the filters by species and by status, and the rules the API
 // refuses: the natural key, an alias repeated, an epithet missing in a language, and the
 // retirement of a species an online character names. Every content is retired at the end.
 
@@ -60,10 +60,11 @@ test('a character with its lists goes online, reads in both languages and keeps 
   const secondId = await online(second);
   const unrelatedId = await online(unrelated);
 
-  // The draft, with every list and its portrait, through the whole editorial route.
+  // The draft, with every list and a gallery of two appearances - the first ended, so the
+  // second is the main portrait (workflow 3.5.1) - through the whole editorial route.
   const epithets = ['Straw Hat', 'Rubber Man'];
   const aliases = ['Mugiwara', 'Captain'];
-  await createCharacter(editor, languages, {
+  await createCharacter(editor, {
     romaji,
     name,
     japaneseName: 'モンキー・D・ルフィ',
@@ -71,7 +72,10 @@ test('a character with its lists goes online, reads in both languages and keeps 
     gender: 'MALE',
     birthday: BIRTHDAY,
     firstAppearance: chapter,
-    image: characterImage(),
+    gallery: [
+      { image: characterImage(), kind: 'ASPETTO', caption: 'Before', ended: true },
+      { image: characterImage('webp', OTHER_BLOCK_COLOR), kind: 'ASPETTO', caption: 'After' },
+    ],
     epithets,
     aliases,
     species: [first, second],
@@ -79,6 +83,22 @@ test('a character with its lists goes online, reads in both languages and keeps 
   const card = editor.url();
   const id = card.split('/').pop()!;
   await expect(editor.getByTestId('card-name')).toContainText(name);
+  // The card shows both images and marks the second as the main portrait.
+  await expect(editor.getByTestId('card-gallery-image')).toHaveCount(2);
+  await expect(editor.getByTestId('card-main-portrait')).toHaveCount(1);
+  await expect(
+    editor.getByTestId('card-part-entry').filter({ has: editor.getByTestId('card-main-portrait') }),
+  ).toContainText(inLanguage('After', 'en'));
+  const saved = await editor.request.get(`/api/content/characters/${id}/versions/1`);
+  const gallery: { image: { id: string } }[] = (await saved.json()).body.gallery;
+  expect(gallery).toHaveLength(2);
+  // The editor marks it too, next to the second entry.
+  await editor.goto(`${card}/edit`);
+  const entries = editor.getByTestId('draft-gallery').getByTestId('part-entry');
+  await expect(entries).toHaveCount(2);
+  await expect(entries.nth(0).getByTestId('part-main-portrait')).toHaveCount(0);
+  await expect(entries.nth(1).getByTestId('part-main-portrait')).toBeVisible();
+  await editor.goto(card);
   await actOnRoute(editor, 'Submit for review');
   await expect(denDenMushi(editor)).toContainText('Submitted for review');
   await reviewer.goto(card);
@@ -116,6 +136,7 @@ test('a character with its lists goes online, reads in both languages and keeps 
   expect(english.slug).toBe(italian.slug);
   expect((await getPublic(request, characterPath('en', english.slug))).status()).toBe(200);
   expect(english.image).toMatch(PUBLIC_IMAGE_PATH);
+  expect(english.image).toBe(`v1/images/${gallery[1].image.id}`);
   const portrait = await getPublic(request, `/${english.image}`);
   expect(portrait.status()).toBe(200);
   expect(portrait.headers()['content-type']).toBe('image/webp');

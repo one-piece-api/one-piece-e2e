@@ -8,15 +8,17 @@ import {
   saveBounty,
 } from "./support/bounty";
 import { affiliationBody } from "./support/affiliation";
-import { addParagraph } from "./support/paragraphs";
+import { addParagraph, inEachLanguage } from "./support/paragraphs";
 import { devilFruitBody, fruitTypeBody } from "./support/devil-fruit";
 import {
+  addGalleryImage,
   characterBody,
   FruitUseBody,
   inLanguage,
   pickChapter,
   RelativeBody,
 } from "./support/character";
+import { characterImage } from "./support/images";
 import {
   bountyPath,
   characterPath,
@@ -29,6 +31,7 @@ import {
 } from "./support/public-api";
 import {
   approve,
+  contentRequest,
   Crew,
   createDraft,
   languageCodes,
@@ -273,6 +276,13 @@ test("a character belongs to a crew in two periods and to the Navy with a rank, 
   await editor.locator("#draft-status").selectOption("ALIVE");
   await editor.locator("#draft-gender").selectOption("MALE");
   await pickChapter(editor, "draft-firstAppearance", chapter);
+  // Review asks for an appearance at the first appearance (workflow 3.5.1).
+  await addGalleryImage(
+    editor,
+    0,
+    { image: characterImage(), kind: "ASPETTO", caption: "Portrait" },
+    chapter,
+  );
   const memberships = editor.getByTestId("draft-affiliations");
   const join = async (index: number, label: string) => {
     await memberships.getByTestId("part-add").click();
@@ -298,11 +308,11 @@ test("a character belongs to a crew in two periods and to the Navy with a rank, 
       .nth(index)
       .getByTestId("sub-part-add")
       .click();
-    for (const language of languages) {
-      await editor
+    await inEachLanguage(editor, "affiliations", (language) =>
+      editor
         .locator(`#${box}-role-${language}`)
-        .fill(inLanguage(role, language));
-    }
+        .fill(inLanguage(role, language)),
+    );
     await pickChapter(editor, `${box}-discovered`, discovered);
   };
   await join(0, inLanguage(crewName, "en"));
@@ -459,9 +469,10 @@ test("the rank rules refuse a rank outside the Navy and an affiliation leaving t
     });
 
   // A rank in a pirate crew is refused on save, naming the rank of the period.
-  const outside = await editor.request.post("/api/content/characters", {
-    data: character(`E2E Rank Outside ${stamp}`, crewId),
-  });
+  const outside = await editor.request.post(
+    "/api/content/characters",
+    contentRequest(character(`E2E Rank Outside ${stamp}`, crewId)),
+  );
   expect(outside.status()).toBe(422);
   expect(JSON.stringify(await outside.json())).toContain(
     "affiliations[0].periods[0].marineRank",
@@ -579,11 +590,9 @@ test("a Devil Fruit has one current user, unless it is shared, in the editor and
   expect(reopened.status(), await reopened.text()).toBe(201);
   const updated = await editor.request.put(
     `/api/content/characters/${aceId}/versions/2`,
-    {
-      data: character("Ace", [
-        { devilFruit: meraId, ended: { chapter: chapterId } },
-      ]),
-    },
+    contentRequest(
+      character("Ace", [{ devilFruit: meraId, ended: { chapter: chapterId } }]),
+    ),
   );
   expect(updated.status(), await updated.text()).toBeLessThan(300);
   await approve(crew, "characters", aceId, 2);
@@ -763,14 +772,18 @@ test("a relative is stored once and read from both sides, in the editor and the 
     "already names this character as a relative",
   );
   const draftPath = `/api/content/characters/${garpId}/versions/2`;
-  const back = await editor.request.put(draftPath, {
-    data: character("Garp", [{ relative: luffyId, kind: "GRANDCHILD" }]),
-  });
+  const back = await editor.request.put(
+    draftPath,
+    contentRequest(
+      character("Garp", [{ relative: luffyId, kind: "GRANDCHILD" }]),
+    ),
+  );
   expect(back.status()).toBe(422);
   expect(JSON.stringify(await back.json())).toContain("relatives[0].relative");
-  const itself = await editor.request.put(draftPath, {
-    data: character("Garp", [{ relative: garpId, kind: "SIBLING" }]),
-  });
+  const itself = await editor.request.put(
+    draftPath,
+    contentRequest(character("Garp", [{ relative: garpId, kind: "SIBLING" }])),
+  );
   expect(itself.status()).toBe(422);
   expect(JSON.stringify(await itself.json())).toContain(
     "relatives[0].relative",

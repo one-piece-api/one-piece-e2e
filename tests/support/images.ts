@@ -25,6 +25,9 @@ export interface BlockImage {
 
 const BLOCK_COLOR = { red: 0xe8, green: 0x6a, blue: 0x2c };
 
+/** A second colour, for an image that must differ from the first by its bytes: a gallery's. */
+export const OTHER_BLOCK_COLOR = { red: 0x2c, green: 0x4a, blue: 0xe8 };
+
 /**
  * A fruit the Devil Fruit image profile accepts (content-service plan D6): 4:5, an opaque
  * block on a transparent margin, so that enough of it is transparent.
@@ -61,18 +64,31 @@ export function speciesImage(format: ImageFormat = 'webp'): UploadFile {
 
 /**
  * A portrait the character image profile accepts (character plan D7): fully opaque, 400 x 500
- * at least and close to 4:5, so the backend fits it into its 320 x 400 canvas.
+ * at least and close to 4:5, so the backend fits it into its 320 x 400 canvas. In `color`, for
+ * two images of one gallery that must differ.
  */
-export function characterImage(format: ImageFormat = 'webp'): UploadFile {
-  return upload('e2e-character', format, { width: 400, height: 500, margin: 0 });
+export function characterImage(
+  format: ImageFormat = 'webp',
+  color: BlockImage['color'] = BLOCK_COLOR,
+): UploadFile {
+  return upload('e2e-character', format, { width: 400, height: 500, margin: 0 }, color);
 }
 
 /** An image id as the public API names it: the SHA-256 of its bytes, no extension. */
 export const PUBLIC_IMAGE_PATH = /^v1\/images\/[0-9a-f]{64}$/;
 
-function upload(name: string, format: ImageFormat, size: Omit<BlockImage, 'color'>): UploadFile {
-  const image = { ...size, color: BLOCK_COLOR };
+function upload(
+  name: string,
+  format: ImageFormat,
+  size: Omit<BlockImage, 'color'>,
+  color: BlockImage['color'] = BLOCK_COLOR,
+): UploadFile {
+  const image = { ...size, color };
   return format === 'webp'
-    ? { name: `${name}.webp`, mimeType: 'image/webp', buffer: encodeWebp(image) }
+    ? {
+        name: `${name}.webp`,
+        mimeType: 'image/webp',
+        buffer: encodeWebp(image),
+      }
     : { name: `${name}.png`, mimeType: 'image/png', buffer: encodePng(image) };
 }

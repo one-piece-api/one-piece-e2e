@@ -1,4 +1,4 @@
-import { Page } from '@playwright/test';
+import { expect, Page } from '@playwright/test';
 
 /**
  * Picks an online chapter by its number in the chapter search box of this id: the first
@@ -38,10 +38,34 @@ export function paragraphsOf(
 }
 
 /**
+ * Writes the texts of the list `list` in every language, one at a time as its switch shows
+ * them: `write(code, name)` gets the language's code and its name as the editor's tabs give it
+ * (e.g. "English"), both in the order of the catalog.
+ */
+export async function inEachLanguage(
+  page: Page,
+  list: string,
+  write: (code: string, name: string) => Promise<void>,
+): Promise<void> {
+  const switches = page
+    .getByTestId(`draft-${list}`)
+    .getByTestId('part-languages')
+    .locator('button');
+  const tabs = page.getByRole('tab');
+  for (let index = 0; index < (await switches.count()); index++) {
+    const button = switches.nth(index);
+    await button.click();
+    await expect(button).toHaveAttribute('aria-pressed', 'true');
+    const code = (await button.getAttribute('data-testid'))!.replace('part-language-', '');
+    await write(code, (await tabs.nth(index).getAttribute('title')) ?? '');
+  }
+}
+
+/**
  * Adds a paragraph at the end of the section `section` of the open editor, written in every
  * language as `text(language)` - the language as its tab names it, e.g. "English" - and
- * discovered at the online chapter numbered `chapter`. Its boxes follow the order of the
- * language tabs; its pickers keep to the axes of the first appearance, so that comes first.
+ * discovered at the online chapter numbered `chapter`. Its pickers keep to the axes of the
+ * first appearance, so that comes first.
  */
 export async function addParagraph(
   page: Page,
@@ -50,14 +74,9 @@ export async function addParagraph(
   chapter: number,
 ): Promise<void> {
   const list = page.getByTestId(`draft-${section}`);
-  const tabs = page.getByRole('tab');
-  const languages = await tabs.count();
-  const index = (await list.locator('textarea').count()) / languages;
+  const index = await list.getByTestId('part-entry').count();
   await list.getByTestId('part-add').click();
-  const boxes = list.locator(`textarea[id^="draft-${section}-${index}-text-"]`);
-  for (let language = 0; language < languages; language++) {
-    await boxes.nth(language).fill(text((await tabs.nth(language).getAttribute('title')) ?? ''));
-  }
+  await rewriteParagraph(page, section, index, text);
   await pickChapter(page, `draft-${section}-${index}-discovered`, chapter);
 }
 
@@ -71,11 +90,7 @@ export async function rewriteParagraph(
   index: number,
   text: (language: string) => string,
 ): Promise<void> {
-  const tabs = page.getByRole('tab');
-  const boxes = page
-    .getByTestId(`draft-${section}`)
-    .locator(`textarea[id^="draft-${section}-${index}-text-"]`);
-  for (let language = 0; language < (await tabs.count()); language++) {
-    await boxes.nth(language).fill(text((await tabs.nth(language).getAttribute('title')) ?? ''));
-  }
+  await inEachLanguage(page, section, (code, name) =>
+    page.locator(`#draft-${section}-${index}-text-${code}`).fill(text(name)),
+  );
 }

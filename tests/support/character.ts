@@ -1,6 +1,12 @@
 import { APIResponse, expect, Page } from "@playwright/test";
-import { UploadFile } from "./images";
-import { addParagraph, paragraphsOf, pickChapter } from "./paragraphs";
+import { characterImage, UploadFile } from "./images";
+import {
+  addParagraph,
+  inEachLanguage,
+  paragraphsOf,
+  pickChapter,
+} from "./paragraphs";
+import { ContentBody, contentRequest, UPLOADS } from "./story";
 
 export { pickChapter };
 
@@ -15,12 +21,27 @@ export interface CharacterDraft {
   birthday: { day: number; month: number };
   /** The number of the online chapter that is its first appearance. */
   firstAppearance: number;
-  image: UploadFile;
+  /** The images of its gallery, in order: at least an appearance, as review asks. */
+  gallery: GalleryDraft[];
   /** The base text of each epithet, in order; every language gets its own code appended. */
   epithets: string[];
   aliases: string[];
   /** The names of the online species, in the order the character shows them. */
   species: string[];
+}
+
+/** The kind of a gallery image: an appearance or a form (workflow 3.5.1). */
+export type GalleryKind = "ASPETTO" | "FORMA";
+
+/**
+ * One image of a gallery, through the editor: discovered at the first appearance, ended there
+ * too when `ended` is set; its caption gets every language's code appended.
+ */
+export interface GalleryDraft {
+  image: UploadFile;
+  kind: GalleryKind;
+  caption: string;
+  ended?: boolean;
 }
 
 /** The text an epithet or a name is written with in one language. */
@@ -29,7 +50,7 @@ export function inLanguage(text: string, language: string): string {
 }
 
 /**
- * Writes a complete character draft in the editor - romaji, Japanese name, portrait, status,
+ * Writes a complete character draft in the editor - romaji, Japanese name, gallery, status,
  * gender, birthday, first appearance, the species picked from the search, epithets in every
  * language, aliases, a name in every language and a paragraph of description - and saves it. Every entry
  * is discovered at the first appearance: review asks for it, and its pickers keep to the axes
@@ -39,14 +60,11 @@ export function inLanguage(text: string, language: string): string {
  */
 export async function createCharacter(
   page: Page,
-  languages: string[],
   draft: CharacterDraft,
 ): Promise<void> {
   await page.goto("/content/characters/new");
   await page.getByLabel("Romaji").fill(draft.romaji);
   await page.locator("#draft-japaneseName").fill(draft.japaneseName);
-  await page.locator("#draft-image").setInputFiles(draft.image);
-  await expect(page.getByTestId("image-preview")).toBeVisible();
   await page.locator("#draft-status").selectOption(draft.status);
   await page.locator("#draft-gender").selectOption(draft.gender);
   await page
@@ -59,11 +77,11 @@ export async function createCharacter(
   await addSpecies(page, draft.species, draft.firstAppearance);
   for (const [index, epithet] of draft.epithets.entries()) {
     await addPart(page, "epithets");
-    for (const language of languages) {
-      await page
+    await inEachLanguage(page, "epithets", (language) =>
+      page
         .locator(`#draft-epithets-${index}-text-${language}`)
-        .fill(inLanguage(epithet, language));
-    }
+        .fill(inLanguage(epithet, language)),
+    );
     await pickChapter(
       page,
       `draft-epithets-${index}-discovered`,
@@ -78,6 +96,9 @@ export async function createCharacter(
       `draft-aliases-${index}-discovered`,
       draft.firstAppearance,
     );
+  }
+  for (const [index, entry] of draft.gallery.entries()) {
+    await addGalleryImage(page, index, entry, draft.firstAppearance);
   }
   await addParagraph(
     page,
@@ -95,6 +116,39 @@ export async function createCharacter(
   await page.getByRole("button", { name: "Save draft" }).click();
   await expect(page.getByText(/New draft aboard/)).toBeVisible();
   await expect(page).toHaveURL(/\/characters\/[0-9a-f-]{36}$/);
+}
+
+/**
+ * Adds image `index` at the end of the gallery: the file, its kind, its caption in every
+ * language, discovered at this chapter and, when the draft says so, ended there too.
+ */
+export async function addGalleryImage(
+  page: Page,
+  index: number,
+  entry: GalleryDraft,
+  chapter: number,
+): Promise<void> {
+  await addPart(page, "gallery");
+  const gallery = page.getByTestId("draft-gallery");
+  await page
+    .locator(`#draft-gallery-${index}-image`)
+    .setInputFiles(entry.image);
+  await expect(gallery.getByTestId("image-preview").nth(index)).toBeVisible();
+  await page.locator(`#draft-gallery-${index}-kind`).selectOption(entry.kind);
+  await inEachLanguage(page, "gallery", (language) =>
+    page
+      .locator(`#draft-gallery-${index}-caption-${language}`)
+      .fill(inLanguage(entry.caption, language)),
+  );
+  await pickChapter(page, `draft-gallery-${index}-discovered`, chapter);
+  if (entry.ended) {
+    await gallery
+      .getByTestId("part-entry")
+      .nth(index)
+      .getByTestId("window-add-end")
+      .click();
+    await pickChapter(page, `draft-gallery-${index}-ended`, chapter);
+  }
 }
 
 /**
@@ -168,10 +222,19 @@ export interface RelativeBody {
   discovered?: StoryPointBody;
 }
 
+/** One image of a gallery as the content API saves it, the file uploaded with the body. */
+export interface GalleryImageBody {
+  image: UploadFile;
+  kind: GalleryKind;
+  caption?: string;
+  ended?: StoryPointBody;
+}
+
 /**
  * The body the content API saves a character with; `chapter`, `species` and affiliations are
  * content ids. Every entry of a list is discovered at the first appearance unless it says
- * otherwise; a membership's periods are given whole.
+ * otherwise; a membership's periods are given whole. The gallery is one appearance unless
+ * given: each image is uploaded with the body (`upload: n`), its caption in every language.
  */
 export function characterBody(
   languages: string[],
@@ -186,10 +249,27 @@ export function characterBody(
     devilFruits?: FruitUseBody[];
     relatives?: RelativeBody[];
     gender?: "MALE" | "FEMALE" | "UNKNOWN";
+    gallery?: GalleryImageBody[];
   },
-): Record<string, unknown> {
+): ContentBody {
   const discovered = { chapter: draft.chapter };
+  const gallery = draft.gallery ?? [
+    { image: characterImage(), kind: "ASPETTO" },
+  ];
   return {
+    [UPLOADS]: gallery.map(({ image }) => image),
+    gallery: gallery.map(({ kind, caption, ended }, upload) => ({
+      upload,
+      kind,
+      caption: Object.fromEntries(
+        languages.map((code) => [
+          code,
+          inLanguage(caption ?? `${draft.name} portrait`, code),
+        ]),
+      ),
+      discovered,
+      ended: ended ?? null,
+    })),
     romaji: draft.romaji,
     status: "ALIVE",
     gender: draft.gender ?? "MALE",
@@ -220,7 +300,7 @@ export function characterBody(
 /** Saves a character draft through the content API; the response is the caller's to judge. */
 export function saveCharacter(
   page: Page,
-  body: Record<string, unknown>,
+  body: ContentBody,
 ): Promise<APIResponse> {
-  return page.request.post("/api/content/characters", { data: body });
+  return page.request.post("/api/content/characters", contentRequest(body));
 }

@@ -1,4 +1,5 @@
 import { APIResponse, expect, Page } from '@playwright/test';
+import { UploadFile } from './images';
 import { paragraphsOf } from './paragraphs';
 
 /** The story entities, as the content API names them (`/api/content/<entity>`). */
@@ -21,9 +22,17 @@ export interface Crew {
   publisher: Page;
 }
 
-/** A number no earlier run used: story numbers are unique across every version, forever. */
+/** The last number `freshNumber` gave in this run. */
+let lastFreshNumber = 0;
+
+/**
+ * A number no earlier run used: story numbers are unique across every version, forever. The
+ * seconds of the clock, never the same twice in a run - two chapters made within one second
+ * would otherwise share it.
+ */
 export function freshNumber(offset = 0): number {
-  return Math.floor(Date.now() / 1000) + offset;
+  lastFreshNumber = Math.max(lastFreshNumber + 1, Math.floor(Date.now() / 1000));
+  return lastFreshNumber + offset;
 }
 
 /** The codes of the languages every translated field must be written in. */
@@ -63,18 +72,53 @@ export function titlesOf(languages: string[], title: string): Record<string, { t
  * chapter whose content id is `chapter` - any chapter, approved before the item goes online.
  */
 export function storyDescriptionOf(languages: string[], title: string, chapter: string) {
-  return paragraphsOf(languages, (code) => `${title} described in ${code}.`, { chapter });
+  return paragraphsOf(languages, (code) => `${title} described in ${code}.`, {
+    chapter,
+  });
+}
+
+/**
+ * The files a body sends next to its JSON, in the order its `upload: n` entries count them: a
+ * character's gallery. A symbol key, so that a spread copies it and the JSON leaves it out.
+ */
+export const UPLOADS = Symbol('uploads');
+
+/** A body the content API saves, with the files it uploads where it has any. */
+export type ContentBody = Record<string, unknown> & {
+  [UPLOADS]?: UploadFile[];
+};
+
+/** The multipart part each upload of a gallery travels in (content-service, reveals plan R5). */
+const UPLOAD_PART = 'images';
+
+/**
+ * The options a save sends a body with: plain JSON, or - when it uploads files - the JSON as
+ * the part `version` and every file as a part `images`, in order.
+ */
+export function contentRequest(body: ContentBody): { data: ContentBody } | { multipart: FormData } {
+  const files = body[UPLOADS] ?? [];
+  if (files.length === 0) {
+    return { data: body };
+  }
+  const form = new FormData();
+  form.append(
+    'version',
+    new Blob([JSON.stringify(body)], { type: 'application/json' }),
+    'version.json',
+  );
+  for (const file of files) {
+    form.append(UPLOAD_PART, new Blob([file.buffer], { type: file.mimeType }), file.name);
+  }
+  return { multipart: form };
 }
 
 /** Saves a new draft through the content API and returns the id of its content. */
 export async function createDraft(
   page: Page,
   entity: ContentEntity,
-  body: Record<string, unknown>,
+  body: ContentBody,
 ): Promise<string> {
-  const response = await page.request.post(`/api/content/${entity}`, {
-    data: body,
-  });
+  const response = await page.request.post(`/api/content/${entity}`, contentRequest(body));
   expect(response.status(), await response.text()).toBe(201);
   return (await response.json()).id;
 }
@@ -109,7 +153,7 @@ export function retire(crew: Crew, entity: ContentEntity, id: string, version = 
 export async function putOnline(
   crew: Crew,
   entity: ContentEntity,
-  body: Record<string, unknown>,
+  body: ContentBody,
 ): Promise<string> {
   const id = await createDraft(crew.editor, entity, body);
   await approve(crew, entity, id);
@@ -129,12 +173,13 @@ export async function editDraft(
   page: Page,
   entity: ContentEntity,
   id: string,
-  body: Record<string, unknown>,
+  body: ContentBody,
   version = 1,
 ): Promise<void> {
-  const response = await page.request.put(`/api/content/${entity}/${id}/versions/${version}`, {
-    data: body,
-  });
+  const response = await page.request.put(
+    `/api/content/${entity}/${id}/versions/${version}`,
+    contentRequest(body),
+  );
   expect(response.status(), await response.text()).toBe(200);
 }
 
