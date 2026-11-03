@@ -11,6 +11,7 @@ import {
   PublicCharacter,
   PublicCharacterSummary,
   speciesPath,
+  textsOf,
 } from './support/public-api';
 import { languageCodes, onlineChapter, putOnline, reasonOf, retire } from './support/story';
 
@@ -124,19 +125,27 @@ test('a character with its lists goes online, reads in both languages and keeps 
     birthday: '--05-05',
   });
   expect(italian.name).toBe(`${name} (Italiano)`);
-  expect(english.description).toBe(`${name} described in English.`);
-  expect(english.epithets).toEqual(epithets.map((epithet) => inLanguage(epithet, 'en')));
-  expect(italian.epithets).toEqual(epithets.map((epithet) => inLanguage(epithet, 'it')));
-  expect(english.aliases).toEqual(aliases);
-  expect(italian.aliases).toEqual(aliases);
-  expect(english.species.map((species) => species.id)).toEqual([firstId, secondId]);
-  expect(english.species[0].name).toBe(`${first} (en)`);
-  expect(italian.species[0].name).toBe(`${first} (it)`);
+  expect(textsOf(english.description)).toEqual([`${name} described in English.`]);
+  const values = (entries: { value: string }[]) => entries.map(({ value }) => value);
+  expect(values(english.epithets)).toEqual(epithets.map((epithet) => inLanguage(epithet, 'en')));
+  expect(values(italian.epithets)).toEqual(epithets.map((epithet) => inLanguage(epithet, 'it')));
+  expect(values(english.aliases)).toEqual(aliases);
+  expect(values(italian.aliases)).toEqual(aliases);
+  expect(english.epithets[0]).toMatchObject({ former: false, ended: null });
+  expect(english.species.map(({ species }) => species.id)).toEqual([firstId, secondId]);
+  expect(english.species[0].species.name).toBe(`${first} (en)`);
+  expect(italian.species[0].species.name).toBe(`${first} (it)`);
   expect(english.firstAppearance.chapter?.number).toBe(chapter);
   expect(english.slug).toBe(italian.slug);
   expect((await getPublic(request, characterPath('en', english.slug))).status()).toBe(200);
   expect(english.image).toMatch(PUBLIC_IMAGE_PATH);
   expect(english.image).toBe(`v1/images/${gallery[1].image.id}`);
+  // The gallery in order: the first appearance ended, the second the portrait.
+  expect(english.gallery.map(({ image, kind, former }) => [image, kind, former])).toEqual([
+    [`v1/images/${gallery[0].image.id}`, 'APPEARANCE', true],
+    [english.image, 'APPEARANCE', false],
+  ]);
+  expect(english.gallery[1].caption).toBe(inLanguage('After', 'en'));
   const portrait = await getPublic(request, `/${english.image}`);
   expect(portrait.status()).toBe(200);
   expect(portrait.headers()['content-type']).toBe('image/webp');

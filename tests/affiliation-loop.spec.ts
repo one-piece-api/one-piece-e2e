@@ -9,6 +9,7 @@ import {
   getPublic,
   PublicAffiliation,
   PublicAffiliationSummary,
+  textsOf,
 } from './support/public-api';
 import { languageCodes, onlineChapter, reasonOf, retire } from './support/story';
 
@@ -67,7 +68,7 @@ test('an affiliation with its flag goes online, reads in both languages and keep
   ).json();
   expect(english).toMatchObject({ id, romaji, kind: 'PIRATE_CREW', name: `${name} (English)` });
   expect(italian).toMatchObject({ id, romaji, kind: 'PIRATE_CREW', name: `${name} (Italiano)` });
-  expect(english.description).toBe(`${name} described in English.`);
+  expect(textsOf(english.description)).toEqual([`${name} described in English.`]);
   expect(english.firstAppearance.chapter?.number).toBe(chapter);
   expect(english.slug).toBe(italian.slug);
   expect((await getPublic(request, affiliationPath('en', english.slug))).status()).toBe(200);

@@ -5,7 +5,7 @@ import { englishName } from './support/content';
 import { fruitTypeBody } from './support/devil-fruit';
 import { fruitImage } from './support/images';
 import { addParagraph, pickChapter } from './support/paragraphs';
-import { devilFruitPath, getPublic } from './support/public-api';
+import { devilFruitPath, getPublic, PublicDevilFruitDetail, textsOf } from './support/public-api';
 import {
   approve,
   Crew,
@@ -103,7 +103,11 @@ test('a fruit is described in paragraphs, one per section at its first appearanc
   await approve(crew, 'devil-fruits', fruitId);
   const published = await publish(crew, 'devil-fruits', fruitId);
   expect(published.status(), await published.text()).toBe(200);
-  const fruit = await (await getPublic(request, devilFruitPath('en', fruitId))).json();
+  const fruit: PublicDevilFruitDetail = await (
+    await getPublic(request, devilFruitPath('en', fruitId))
+  ).json();
   expect(fruit.name).toBe(englishName(fruitName));
-  expect(fruit.description).toContain(known('English'));
+  // The ended paragraph is not served: the reader would read a superseded belief.
+  expect(textsOf(fruit.description)).toEqual([known('English')]);
+  expect(fruit.description[0].discovered).toEqual({ chapter, episode: null });
 });

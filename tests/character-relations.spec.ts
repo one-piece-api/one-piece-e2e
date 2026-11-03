@@ -358,22 +358,35 @@ test("a character belongs to a crew in two periods and to the Navy with a rank, 
   await approve(crew, "characters", characterId);
   expect((await publish(crew, "characters", characterId)).status()).toBe(200);
 
-  // The public API: both memberships in order, current, the role and rank of the last period
-  // in the reader's language.
+  // The public API: both memberships in order, current, each period with its role and rank in
+  // the reader's language and its window.
   const character: PublicCharacter = await (
     await getPublic(request, characterPath("en", characterId))
   ).json();
   expect(
-    character.affiliations.map(({ affiliation, role, marineRank, former }) => [
+    character.affiliations.map(({ affiliation, former, periods }) => [
       affiliation.id,
       affiliation.kind,
-      role,
-      marineRank,
       former,
+      periods.map((period) => [
+        period.role,
+        period.marineRank,
+        period.former,
+        period.discovered?.chapter,
+        period.ended?.chapter ?? null,
+      ]),
     ]),
   ).toEqual([
-    [crewId, "PIRATE_CREW", inLanguage("King of Snipers", "en"), null, false],
-    [navyId, "NAVY", inLanguage("Spy", "en"), "VICE_ADMIRAL", false],
+    [
+      crewId,
+      "PIRATE_CREW",
+      false,
+      [
+        [inLanguage("Sniper", "en"), null, true, chapter, comeback],
+        [inLanguage("King of Snipers", "en"), null, false, comeback, null],
+      ],
+    ],
+    [navyId, "NAVY", false, [[inLanguage("Spy", "en"), "VICE_ADMIRAL", false, chapter, null]]],
   ]);
 
   // The public list finds the character by either affiliation and by the kind of its groups.

@@ -4,7 +4,7 @@ import { actOnRoute, blockedActions, claimReview, confirm, denDenMushi } from '.
 import { chapterIdOf } from './support/bounty';
 import { createSpecies, saveSpecies, speciesBody } from './support/species';
 import { speciesImage, PUBLIC_IMAGE_PATH } from './support/images';
-import { getPublic, PublicSpecies, PublicSpeciesSummary, speciesPath } from './support/public-api';
+import { getPublic, PublicSpecies, PublicSpeciesSummary, speciesPath, textsOf } from './support/public-api';
 import { languageCodes, onlineChapter, reasonOf, retire } from './support/story';
 
 // The species through the whole loop (species plan, step S4). The editors' way in the
@@ -53,7 +53,7 @@ test('a species with its picture goes online, reads in both languages and keeps 
   const italian: PublicSpecies = await (await getPublic(request, speciesPath('it', id))).json();
   expect(english).toMatchObject({ id, romaji, name: `${name} (English)` });
   expect(italian).toMatchObject({ id, romaji, name: `${name} (Italiano)` });
-  expect(english.description).toBe(`${name} described in English.`);
+  expect(textsOf(english.description)).toEqual([`${name} described in English.`]);
   expect(english.firstAppearance.chapter?.number).toBe(chapter);
   expect(english.slug).toBe(italian.slug);
   expect((await getPublic(request, speciesPath('en', english.slug))).status()).toBe(200);

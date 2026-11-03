@@ -8,6 +8,30 @@ import { APIRequestContext, APIResponse } from '@playwright/test';
 const API_URL = process.env.E2E_API_URL ?? 'http://localhost:8090';
 const API_HOST = process.env.E2E_API_HOST ?? 'api.localhost';
 
+/** A point on the reader axis (workflow 3.7): a chapter number, an episode number, or both. */
+export interface PublicStoryPoint {
+  chapter: number | null;
+  episode: number | null;
+}
+
+/** The window of a list entry: `former` once the reader learns it is over. */
+export interface PublicWindow {
+  former: boolean;
+  discovered: PublicStoryPoint | null;
+  ended: PublicStoryPoint | null;
+}
+
+/** A paragraph of a long text; an ended one is never served. */
+export interface PublicParagraph {
+  text: string;
+  discovered: PublicStoryPoint | null;
+}
+
+/** The texts of a long text, in order. */
+export function textsOf(paragraphs: PublicParagraph[]): string[] {
+  return paragraphs.map((paragraph) => paragraph.text);
+}
+
 export interface PublicFruitType {
   id: string;
   slug: string;
@@ -39,7 +63,8 @@ export interface PublicDevilFruit {
 /** A fruit with whether several characters may have it, and who has eaten it: current users first. */
 export interface PublicDevilFruitDetail extends PublicDevilFruit {
   multipleUsers: boolean;
-  users: { character: { id: string; slug: string; name: string }; former: boolean }[];
+  users: ({ character: { id: string; slug: string; name: string } } & PublicWindow)[];
+  description: PublicParagraph[];
 }
 
 export interface PublicFruitTypeDetail extends PublicFruitType {
@@ -82,7 +107,7 @@ export interface PublicBountyLink {
 }
 
 export interface PublicBounty extends PublicBountyLink {
-  description: string;
+  description: PublicParagraph[];
   /** The whole chain of the person's posters, newest first, itself included. */
   chain: PublicBountyLink[];
 }
@@ -105,7 +130,7 @@ export interface PublicAffiliationSummary {
 
 export interface PublicAffiliation extends PublicAffiliationSummary {
   language: string;
-  description: string;
+  description: PublicParagraph[];
   firstAppearance: { chapter: { number: number } | null; episode: { number: number } | null };
 }
 
@@ -125,7 +150,7 @@ export interface PublicSpeciesSummary {
 
 export interface PublicSpecies extends PublicSpeciesSummary {
   language: string;
-  description: string;
+  description: PublicParagraph[];
   firstAppearance: { chapter: { number: number } | null; episode: { number: number } | null };
 }
 
@@ -147,28 +172,32 @@ export interface PublicCharacterSummary {
 export interface PublicCharacter extends PublicCharacterSummary {
   language: string;
   japaneseName: string | null;
-  description: string;
+  description: PublicParagraph[];
   gender: string;
   /** ISO 8601 day and month, e.g. `--05-05`. */
   birthday: string | null;
   /** In the language of the reader, in the version's order. */
-  epithets: string[];
-  aliases: string[];
-  species: { id: string; slug: string; name: string }[];
-  /** Its memberships, in the editor's order; the role in the language of the reader. */
+  epithets: ({ value: string } & PublicWindow)[];
+  aliases: ({ value: string } & PublicWindow)[];
+  species: ({ species: { id: string; slug: string; name: string } } & PublicWindow)[];
+  /**
+   * Its memberships, in the editor's order, each with its periods; `former` when no period
+   * is current. The role in the language of the reader.
+   */
   affiliations: {
     affiliation: { id: string; slug: string; name: string; kind: string | null };
-    role: string | null;
-    marineRank: string | null;
     former: boolean;
+    periods: ({ role: string | null; marineRank: string | null } & PublicWindow)[];
   }[];
   /** Its Devil Fruits, in the editor's order. */
-  devilFruits: { devilFruit: { id: string; slug: string; name: string }; former: boolean }[];
+  devilFruits: ({ devilFruit: { id: string; slug: string; name: string } } & PublicWindow)[];
   /** Its relatives, whichever of the two characters stores the tie; `kind` is read from this side. */
-  relatives: {
+  relatives: ({
     character: { id: string; slug: string; name: string; gender: string };
     kind: string;
-  }[];
+  } & PublicWindow)[];
+  /** Its images in order; `image` above is the main portrait among them. */
+  gallery: ({ image: string; kind: 'APPEARANCE' | 'FORM'; caption: string | null } & PublicWindow)[];
   /** Its bounties online, highest amount first. */
   bounties: { id: string; slug: string; amount: number; validity: PublicBountyLink['validity'] }[];
   firstAppearance: { chapter: { number: number } | null; episode: { number: number } | null };
