@@ -5,6 +5,7 @@ import { fruitTypeBody } from "./support/devil-fruit";
 import { paragraphsOf } from "./support/paragraphs";
 import {
   approve,
+  arcOf,
   createDraft,
   Crew,
   freshNumber,
@@ -33,16 +34,6 @@ async function pickPoint(
     .locator(`#${id}-listbox`)
     .getByRole("option", { name: `${label} ${number} —` })
     .click();
-}
-
-/** The id of the arc a chapter online belongs to, from its version. */
-async function arcOf(page: Page, chapterId: string): Promise<string> {
-  const response = await page.request.get(
-    `/api/content/chapters/${chapterId}/versions/1`,
-  );
-  expect(response.ok()).toBeTruthy();
-  const arc = (await response.json()).body.arc;
-  return typeof arc === "string" ? arc : arc.id;
 }
 
 test("a fruit believed to be the Gomu Gomu reveals its real name and type at a chapter and an episode", async ({

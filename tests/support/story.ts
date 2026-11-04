@@ -221,3 +221,11 @@ export async function onlineChapter(crew: Crew): Promise<number> {
   }
   return number;
 }
+
+/** The id of the arc a chapter online belongs to, from its version. */
+export async function arcOf(page: Page, chapterId: string): Promise<string> {
+  const response = await page.request.get(`/api/content/chapters/${chapterId}/versions/1`);
+  expect(response.ok()).toBeTruthy();
+  const arc = (await response.json()).body.arc;
+  return typeof arc === 'string' ? arc : arc.id;
+}
