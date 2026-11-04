@@ -1,19 +1,8 @@
 import { Page } from '@playwright/test';
-import { chapterIdOf } from './bounty';
 import { fruitTypeBody } from './devil-fruit';
 import { paragraphsOf } from './paragraphs';
-import {
-  approve,
-  arcOf,
-  createDraft,
-  Crew,
-  freshNumber,
-  languageCodes,
-  onlineChapter,
-  publish,
-  putOnline,
-  translationsOf,
-} from './story';
+import { approve, createDraft, Crew, publish, putOnline } from './story';
+import { putStoryPointsOnline } from './story-points';
 
 /**
  * The reference case of the field reveals (reveals plan, section 1): the reader first believes the
@@ -47,42 +36,19 @@ export interface GomuGomu {
 /** Puts the fruit of the reference case online, with the chapters, episodes and types it needs. */
 export async function putGomuGomuOnline(crew: Crew): Promise<GomuGomu> {
   const { editor } = crew;
-  const languages = await languageCodes(editor);
   const stamp = Date.now();
 
-  // Three chapters in one arc, then three episodes in it, in the order of the story.
-  const firstChapter = await onlineChapter(crew);
-  const firstChapterId = await chapterIdOf(editor, firstChapter);
-  const arc = await arcOf(editor, firstChapterId);
-  const chapterIds = [firstChapterId];
-  const chapterNumbers = [firstChapter];
-  for (const label of ['before', 'reveal']) {
-    const number = freshNumber();
-    chapterNumbers.push(number);
-    chapterIds.push(
-      await putOnline(crew, 'chapters', {
-        number,
-        arc,
-        releases: [{ country: 'JP', date: '2020-05-01' }],
-        translations: translationsOf(languages, `E2E Gomu ${label} chapter ${number}`),
-      }),
-    );
-  }
-  const episodeIds: string[] = [];
-  const episodeNumbers: number[] = [];
-  for (const label of ['first', 'before', 'reveal']) {
-    const number = freshNumber();
-    episodeNumbers.push(number);
-    episodeIds.push(
-      await putOnline(crew, 'episodes', {
-        number,
-        arc,
-        japaneseTitle: `E2E ${number}`,
-        broadcasts: [{ country: 'JP', date: '2022-02-02' }],
-        translations: translationsOf(languages, `E2E Gomu ${label} episode ${number}`),
-      }),
-    );
-  }
+  // Three points of the story - the fruit's first appearance, the day before the reveal and the
+  // reveal - each a chapter and an episode.
+  const { languages, points } = await putStoryPointsOnline(crew, [
+    'Gomu first',
+    'Gomu before',
+    'Gomu reveal',
+  ]);
+  const chapterIds = points.map(({ chapterId }) => chapterId);
+  const chapterNumbers = points.map(({ chapter }) => chapter);
+  const episodeIds = points.map(({ episodeId }) => episodeId);
+  const episodeNumbers = points.map(({ episode }) => episode);
   const at = (index: number) => ({
     chapter: chapterIds[index],
     episode: episodeIds[index],

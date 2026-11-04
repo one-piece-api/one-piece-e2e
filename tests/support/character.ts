@@ -242,6 +242,8 @@ export function characterBody(
     romaji: string;
     name: string;
     chapter: string;
+    /** The first appearance on the episode axis too, when the character is read there. */
+    episode?: string;
     epithets?: Record<string, string>[];
     aliases?: string[];
     species?: string[];
@@ -252,7 +254,9 @@ export function characterBody(
     gallery?: GalleryImageBody[];
   },
 ): ContentBody {
-  const discovered = { chapter: draft.chapter };
+  const discovered: StoryPointBody = draft.episode
+    ? { chapter: draft.chapter, episode: draft.episode }
+    : { chapter: draft.chapter };
   const gallery = draft.gallery ?? [
     { image: characterImage(), kind: "ASPETTO" },
   ];
@@ -273,7 +277,7 @@ export function characterBody(
     romaji: draft.romaji,
     status: "ALIVE",
     gender: draft.gender ?? "MALE",
-    firstAppearance: { chapter: draft.chapter },
+    firstAppearance: discovered,
     epithets: (draft.epithets ?? []).map((text) => ({ text, discovered })),
     aliases: (draft.aliases ?? []).map((alias) => ({ alias, discovered })),
     species: (draft.species ?? []).map((species) => ({ species, discovered })),
