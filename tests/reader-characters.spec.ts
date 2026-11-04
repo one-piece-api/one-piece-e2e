@@ -1,9 +1,11 @@
 import { APIRequestContext, expect, test } from '@playwright/test';
 import { signIn } from './support/crew';
 import {
+  affiliationPath,
   characterPath,
   devilFruitPath,
   getPublic,
+  PublicAffiliation,
   PublicCharacter,
   PublicCharacterSummary,
   PublicDevilFruitDetail,
@@ -185,6 +187,119 @@ test.describe.serial('the reference characters are read as the reader knows them
       ]);
       expect(await currentUsers('dressrosa')).toEqual([story.sabo]);
     });
+
+    test(`${axis.name}: Dragon is Luffy's father only from Enies Lobby, read from both sides`, async ({
+      request,
+    }) => {
+      const relatives = async (id: string, label: StoryLabel) =>
+        (await characterAt(request, id, axis, label)).relatives;
+
+      // Before the reader learns it, Luffy has no relative; Dragon does not exist yet.
+      expect(await relatives(story.luffy, 'water7')).toEqual([]);
+      const unknown = await getPublic(
+        request,
+        `${characterPath('en', story.dragon)}?${axis.param}=${numberAt(axis, 'water7')}`,
+      );
+      expect(unknown.status()).toBe(404);
+
+      // Enies Lobby: the tie, discovered here and never ended, from each side with its kind.
+      const luffy = await relatives(story.luffy, 'enies');
+      expect(luffy.map(({ character, kind }) => [character.id, kind])).toEqual([
+        [story.dragon, 'PARENT'],
+      ]);
+      expect(luffy[0]).toMatchObject({
+        former: false,
+        discovered: seenAt(axis, 'enies'),
+        ended: null,
+      });
+      const dragon = await relatives(story.dragon, 'enies');
+      expect(dragon.map(({ character, kind }) => [character.id, kind])).toEqual([
+        [story.luffy, 'CHILD'],
+      ]);
+    });
+
+    test(`${axis.name}: Rocks appears with a membership the reader learns is already over`, async ({
+      request,
+    }) => {
+      const unknown = await getPublic(
+        request,
+        `${characterPath('en', story.rocks)}?${axis.param}=${numberAt(axis, 'enies')}`,
+      );
+      expect(unknown.status()).toBe(404);
+
+      const rocks = await characterAt(request, story.rocks, axis, 'marineford');
+      expect(rocks.affiliations).toHaveLength(1);
+      expect(rocks.affiliations[0].former).toBe(true);
+      expect(rocks.affiliations[0].periods[0]).toMatchObject({
+        former: true,
+        discovered: seenAt(axis, 'marineford'),
+        ended: seenAt(axis, 'marineford'),
+      });
+    });
+
+    test(`${axis.name}: the lists and the member counts hold only what the reader has met`, async ({
+      request,
+    }) => {
+      const listed = async (path: string, label: StoryLabel) =>
+        (
+          (
+            await read(
+              request,
+              `${path}${path.includes('?') ? '&' : '?'}${axis.param}=${numberAt(axis, label)}`,
+            )
+          ).content as PublicCharacterSummary[]
+        ).map(({ id }) => id);
+      const everyone = (label: StoryLabel) =>
+        listed(`${characterPath('en')}?q=${story.stamp}&size=100`, label);
+      const members = (group: string, label: StoryLabel) =>
+        listed(`${characterPath('en')}?affiliation=${group}`, label);
+      const memberCount = async (group: string, label: StoryLabel) =>
+        (
+          (await read(
+            request,
+            `${affiliationPath('en', group)}?${axis.param}=${numberAt(axis, label)}`,
+          )) as PublicAffiliation
+        ).memberCount;
+
+      // Each character is listed from the point where the reader meets them, and not before.
+      const sorted = (ids: string[]) => [...ids].sort();
+      expect(sorted(await everyone('debut'))).toEqual(
+        sorted([story.usopp, story.koby, story.ace, story.luffy]),
+      );
+      expect(sorted(await everyone('water7'))).toEqual(
+        sorted([story.usopp, story.koby, story.ace, story.luffy, story.sabo]),
+      );
+      expect(sorted(await everyone('enies'))).toEqual(
+        sorted([story.usopp, story.koby, story.ace, story.luffy, story.sabo, story.dragon]),
+      );
+      expect(sorted(await everyone('marineford'))).toEqual(
+        sorted([
+          story.usopp,
+          story.koby,
+          story.ace,
+          story.luffy,
+          story.sabo,
+          story.dragon,
+          story.rocks,
+        ]),
+      );
+
+      // Usopp is in the crew, then out of it while the reader thinks he has left, then back.
+      expect(await members(story.strawHats, 'debut')).toEqual([story.usopp]);
+      expect(await memberCount(story.strawHats, 'debut')).toBe(1);
+      expect(await members(story.strawHats, 'water7')).toEqual([]);
+      expect(await memberCount(story.strawHats, 'water7')).toBe(0);
+      expect(await members(story.strawHats, 'enies')).toEqual([story.usopp]);
+      expect(await memberCount(story.strawHats, 'enies')).toBe(1);
+
+      // Koby is a member of the Navy through both ranks.
+      expect(await members(story.marines, 'water7')).toEqual([story.koby]);
+      expect(await memberCount(story.marines, 'enies')).toBe(1);
+
+      // Rocks was never a current member: his group counts nobody.
+      expect(await members(story.rocksPirates, 'marineford')).toEqual([]);
+      expect(await memberCount(story.rocksPirates, 'marineford')).toBe(0);
+    });
   }
 
   test('without a filter: the truth, every point on both axes, and no ended paragraph', async ({
@@ -204,5 +319,17 @@ test.describe.serial('the reference characters are read as the reader knows them
     const sabo: PublicCharacter = await read(request, characterPath('en', story.sabo));
     expect(sabo.status).toBe('ALIVE');
     expect(sabo.description.map(({ text }) => text)).toEqual([story.saboAlive]);
+
+    const luffy: PublicCharacter = await read(request, characterPath('en', story.luffy));
+    expect(luffy.relatives.map(({ character, kind }) => [character.id, kind])).toEqual([
+      [story.dragon, 'PARENT'],
+    ]);
+    const rocks: PublicCharacter = await read(request, characterPath('en', story.rocks));
+    expect(rocks.affiliations[0].former).toBe(true);
+    expect(await memberCountOf(request, story.rocksPirates)).toBe(0);
   });
+
+  async function memberCountOf(request: APIRequestContext, group: string): Promise<number> {
+    return ((await read(request, affiliationPath('en', group))) as PublicAffiliation).memberCount;
+  }
 });

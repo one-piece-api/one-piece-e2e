@@ -130,6 +130,8 @@ export interface PublicAffiliationSummary {
 
 export interface PublicAffiliation extends PublicAffiliationSummary {
   language: string;
+  /** The characters online that belong to it now: those who left it are not counted. */
+  memberCount: number;
   description: PublicParagraph[];
   firstAppearance: { chapter: { number: number } | null; episode: { number: number } | null };
 }

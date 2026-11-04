@@ -28,11 +28,14 @@ let lastFreshNumber = 0;
 /**
  * A number no earlier run used: story numbers are unique across every version, forever. The
  * seconds of the clock, never the same twice in a run - two chapters made within one second
- * would otherwise share it.
+ * would otherwise share it. A caller that also uses the `reserve` numbers after the one it gets
+ * (`n + 1`...) asks for them here, so no later call hands them out again - the counter can be
+ * ahead of the clock after a spec that made many.
  */
-export function freshNumber(offset = 0): number {
-  lastFreshNumber = Math.max(lastFreshNumber + 1, Math.floor(Date.now() / 1000));
-  return lastFreshNumber + offset;
+export function freshNumber(reserve = 0): number {
+  const first = Math.max(lastFreshNumber + 1, Math.floor(Date.now() / 1000));
+  lastFreshNumber = first + reserve;
+  return first;
 }
 
 /** The codes of the languages every translated field must be written in. */

@@ -29,7 +29,8 @@ test('the story chain goes online in order, spans follow what is online, blocks 
   request,
 }) => {
   test.setTimeout(240_000);
-  const base = freshNumber();
+  // The chain uses `base` and `base + 1`: reserved, so the anchor chapter below cannot take them.
+  const base = freshNumber(1);
   const crew: Crew = {
     editor: await signIn(browser, 'chopper'),
     reviewer: await signIn(browser, 'zoro'),

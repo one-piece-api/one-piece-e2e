@@ -7,9 +7,11 @@ import { putStoryPointsOnline, StoryPoint } from './story-points';
 
 /**
  * The reference characters of the reveals plan (section 1), read as the reader knows them at
- * each point of one story. The points, in order: `debut` (everyone but Sabo appears), `water7`
- * (Usopp leaves the crew; Sabo appears, believed dead), `enies` (Usopp is back; Koby is promoted),
- * `marineford` (Ace's window and life end), `dressrosa` (Sabo is alive and eats the fruit).
+ * each point of one story. The points, in order: `debut` (Usopp, Koby, Ace and Luffy appear),
+ * `water7` (Usopp leaves the crew; Sabo appears, believed dead), `enies` (Usopp is back; Koby is
+ * promoted; Dragon appears, and is Luffy's father), `marineford` (Ace's window and life end;
+ * Rocks appears, a pirate whose membership is already over), `dressrosa` (Sabo is alive and eats
+ * the fruit).
  */
 export const STORY = ['debut', 'water7', 'enies', 'marineford', 'dressrosa'] as const;
 export type StoryLabel = (typeof STORY)[number];
@@ -18,21 +20,27 @@ export interface ReferenceCharacters {
   languages: string[];
   /** The points of the story, by label: the chapter and the episode of each. */
   point: Record<StoryLabel, StoryPoint>;
+  /** The name the characters share: `E2E <name> <stamp>`, to search them. */
+  stamp: number;
   /** The content ids, online. */
   usopp: string;
+  luffy: string;
+  dragon: string;
+  rocks: string;
   koby: string;
   ace: string;
   sabo: string;
   mera: string;
   strawHats: string;
   marines: string;
+  rocksPirates: string;
   /** The texts the reader reads, in English. */
   usoppRoles: [string, string];
   saboBelievedDead: string;
   saboAlive: string;
 }
 
-/** Puts the story and the four characters online. */
+/** Puts the story and the characters online. */
 export async function putReferenceCharactersOnline(crew: Crew): Promise<ReferenceCharacters> {
   const { languages, points } = await putStoryPointsOnline(crew, [...STORY]);
   const stamp = Date.now();
@@ -65,6 +73,7 @@ export async function putReferenceCharactersOnline(crew: Crew): Promise<Referenc
     });
   const strawHats = await group('Straw Hats', 'PIRATE_CREW');
   const marines = await group('Marines', 'NAVY');
+  const rocksPirates = await group('Rocks Pirates', 'PIRATE_CREW');
   const type = await putOnline(crew, 'devil-fruit-types', {
     ...fruitTypeBody(languages, {
       romaji: `E2E Logia ${stamp}-kei`,
@@ -180,9 +189,39 @@ export async function putReferenceCharactersOnline(crew: Crew): Promise<Referenc
     throw new Error(`Sabo would not go online: ${await published.text()}`);
   }
 
+  // Dragon appears at Enies Lobby; Luffy, who stores the tie, learns he is his father there too.
+  const dragon = await putOnline(crew, 'characters', character('Dragon', 'enies', {}));
+  const luffy = await putOnline(
+    crew,
+    'characters',
+    character('Luffy', 'debut', {
+      relatives: [{ relative: dragon, kind: 'PARENT', discovered: at('enies') }],
+    }),
+  );
+
+  // Rocks appears at Marineford, and the reader learns his membership already over: a window
+  // that is discovered and ended at the same point.
+  const rocks = await putOnline(
+    crew,
+    'characters',
+    character('Rocks', 'marineford', {
+      affiliations: [
+        {
+          affiliation: rocksPirates,
+          periods: [{ discovered: at('marineford'), ended: at('marineford') }],
+        },
+      ],
+    }),
+  );
+
   return {
     languages,
     point,
+    stamp,
+    luffy,
+    dragon,
+    rocks,
+    rocksPirates,
     usopp,
     koby,
     ace,
